@@ -23,31 +23,15 @@
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
-        .animate-pop-in {
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
+        .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+
+        .card-shadow { box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1); }
+
+        #swipe-feedback-bg { transition: background-color 0.15s ease-out; will-change: background-color; }
         
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        .card-shadow {
-            box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1);
-        }
-
-        #swipe-feedback-bg {
-            transition: background-color 0.15s ease-out;
-            will-change: background-color;
-        }
-
-        .fade-out {
-            animation: fadeOut 0.5s ease-out forwards;
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; visibility: visible; }
-            to { opacity: 0; visibility: hidden; }
-        }
+        .fade-out { animation: fadeOut 0.5s ease-out forwards; }
+        @keyframes fadeOut { from { opacity: 1; visibility: visible; } to { opacity: 0; visibility: hidden; } }
     </style>
 </head>
 <body class="w-screen h-[100dvh] overflow-hidden flex flex-col select-none">
@@ -60,10 +44,9 @@
 
     <div id="app" class="relative w-full h-full z-10 flex flex-col hidden opacity-0 transition-opacity duration-500">
 
-        <!-- 1. EINSTELLUNGEN -->
+        <!-- EINSTELLUNGEN -->
         <div id="startbildschirm" class="flex flex-col h-full p-3 bg-white z-50 relative">
             <h1 class="text-2xl font-bold text-center text-blue-600 mb-2 mt-1 shrink-0">Lese-Training</h1>
-
             <div class="flex-grow flex flex-col gap-2 overflow-hidden">
                 <fieldset class="border border-gray-200 rounded-xl p-2 flex flex-col min-h-0 shrink">
                     <legend class="text-sm font-semibold px-2 text-gray-500">Gelernte Buchstaben:</legend>
@@ -71,7 +54,6 @@
                         <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 gap-1.5 pb-1"></div>
                     </div>
                 </fieldset>
-
                 <fieldset class="border border-gray-200 rounded-xl p-2 shrink-0">
                     <legend class="text-sm font-semibold px-2 text-gray-500">Optionen:</legend>
                     <div class="grid grid-cols-3 gap-2 mb-2">
@@ -100,15 +82,12 @@
                     </div>
                 </fieldset>
             </div>
-
             <div class="shrink-0 pt-3 pb-2 safe-area-pb">
-                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform">
-                    Start!
-                </button>
+                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform">Start!</button>
             </div>
         </div>
 
-        <!-- 2. SPIELFELD -->
+        <!-- SPIELFELD -->
         <div id="spiel" class="hidden w-full h-full relative flex flex-col">
             <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
                 <div id="fortschritt-anzeige" class="text-gray-500 font-bold text-sm bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-gray-100">
@@ -133,27 +112,20 @@
             </div>
 
             <div id="los-button-container" class="hidden absolute bottom-10 left-0 right-0 flex justify-center z-50 pointer-events-none">
-                <button id="los-button" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-3 px-12 rounded-full shadow-xl transition-transform duration-150 hover:scale-105 active:scale-95 animate-bounce">
-                    Los!
-                </button>
+                <button id="los-button" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-3 px-12 rounded-full shadow-xl transition-transform duration-150 hover:scale-105 active:scale-95 animate-bounce">Los!</button>
             </div>
         </div>
 
-        <!-- 3. AUSWERTUNG -->
+        <!-- AUSWERTUNG -->
         <div id="auswertung" class="hidden absolute inset-0 z-[60] bg-white flex flex-col justify-center items-center p-6">
             <h2 class="text-5xl font-bold text-blue-600 mb-8 drop-shadow-sm">Super!</h2>
             <div id="sterne-anzeige" class="text-7xl text-yellow-400 mb-10 flex gap-2 drop-shadow-md"></div>
             <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-12 w-full max-w-xs text-center">
                 <p class="text-gray-500 text-lg mb-1">Ergebnis</p>
-                <p class="text-3xl font-bold text-gray-800">
-                    <span id="richtige-woerter-anzahl" class="text-green-600">0</span> / <span id="max-woerter-anzahl">10</span>
-                </p>
+                <p class="text-3xl font-bold text-gray-800"><span id="richtige-woerter-anzahl" class="text-green-600">0</span> / <span id="max-woerter-anzahl">10</span></p>
             </div>
-            <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">
-                Nochmal spielen
-            </button>
+            <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Nochmal spielen</button>
         </div>
-
     </div>
 
     <script>
@@ -162,7 +134,6 @@
         const VOKALE_LISTE = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü'];
         const DIPHTHONGE_LISTE = ['Ei', 'Ai', 'Eu', 'Au'];
         const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
-        
         const WOERTERBUCH = [
             ['O', 'ma'], ['O', 'pa'], ['Ma', 'ma'], ['Pa', 'pa'], ['La', 'ma'], ['Li', 'mo'], ['Li', 'la'], ['Lo', 'la'], ['Ma', 'li'], ['Mi', 'mi'], ['E', 'sel'], ['Na', 'se'], ['Ro', 'se'], ['So', 'fa'], ['Sa', 'la', 'mi'], ['Sa', 'lat'], ['To', 'ma', 'te'], ['Me', 'lo', 'ne'], ['Ba', 'na', 'ne'], ['Am', 'pel'], ['Ap', 'fel'], ['Son', 'ne'], ['Mon', 'd'], ['Ste', 'rn'], ['Ti', 'sch'], ['Stu', 'hl'], ['Nu', 'del'], ['Pi', 'rat'], ['Ra', 'ke', 'te'], ['Hu', 'nd'], ['Ka', 'tze'], ['Maus'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi', 'sch'], ['Vo', 'gel'], ['Blu', 'me'], ['Wol', 'ke'], ['Re', 'gen'], ['Schnee'], ['Eis'], ['Wa', 'l'], ['Zebra'], ['Lö', 'we'], ['Ti', 'ger'], ['En', 'te'], ['Gan', 's'], ['Huh', 'n'], ['Kuh'], ['Scha', 'f'], ['Pferd'], ['Au', 'to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee'], ['Pa', 'ket'], ['Ka', 'mel'], ['In', 'sel'], ['Pin', 'sel']
         ];
@@ -170,11 +141,7 @@
         // --- STATE ---
         const state = {
             settings: { buchstaben: [], minSilben: 1, maxSilben: 2, woerter: 10, farben: true, abstand: false },
-            game: { 
-                runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: false, finished: false,
-                letterStats: {},
-                wordStartTime: 0
-            },
+            game: { runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: false, finished: false, letterStats: {}, wordStartTime: 0 },
             view: { zoom: 1, targetZoom: 1 }
         };
 
@@ -190,7 +157,6 @@
             misc: { losContainer: document.getElementById('los-button-container') }
         };
 
-        // --- PHYSICS ---
         let engine, render, runner, stirrer, physicsActive = false;
 
         // --- INIT ---
@@ -210,9 +176,7 @@
                 document.addEventListener('mousemove', moveStirrer);
                 document.addEventListener('touchmove', moveStirrer, {passive: false});
                 document.addEventListener('touchstart', moveStirrer, {passive: false});
-                document.addEventListener('mousedown', moveStirrer);
             } catch (e) {
-                console.error("Init Error:", e);
                 dom.intro.style.display = 'none';
                 dom.app.classList.remove('hidden');
                 dom.app.style.opacity = '1';
@@ -238,12 +202,10 @@
                     dom.app.classList.remove('hidden');
                     void dom.app.offsetWidth;
                     dom.app.style.opacity = '1';
-                    
                     dom.views.start.classList.remove('hidden');
                     dom.views.start.classList.add('flex');
                 }, 500);
             }, 1500);
-            
             setTimeout(() => {
                 if(dom.intro.style.display !== 'none') {
                     dom.intro.style.display = 'none';
@@ -255,21 +217,16 @@
             }, 3000);
         }
 
-        // --- GAME LOGIC ---
         function startGame() {
             saveSettings();
-            state.game = { 
-                runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: true, finished: false, letterStats: {}
-            };
+            state.game = { runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: true, finished: false, letterStats: {} };
             state.view = { zoom: 1, targetZoom: 1 };
             state.settings.buchstaben.forEach(b => state.game.letterStats[b] = 0);
-            
             dom.views.start.classList.add('hidden');
             dom.views.ende.classList.add('hidden');
             dom.views.spiel.classList.remove('hidden');
             dom.misc.losContainer.classList.add('hidden');
             dom.card.swipe.classList.remove('hidden');
-            
             startPhysics();
             nextCard(true);
         }
@@ -289,24 +246,18 @@
                 prepareEndPhase();
                 return;
             }
-
             dom.stats.curr.textContent = state.game.runde + 1;
             dom.stats.max.textContent = state.settings.woerter;
 
             let wort = selectWordPriority();
             let versuche = 0;
-            while (state.game.history.has(wort.join('')) && versuche < 20) {
+            // Force unique: Check history for BOTH real and fantasy words
+            while (state.game.history.has(wort.join('').toUpperCase()) && versuche < 30) {
                 wort = selectWordPriority();
                 versuche++;
             }
-            state.game.history.add(wort.join(''));
-            
-            const fullString = wort.join('').toUpperCase();
-            state.settings.buchstaben.forEach(token => {
-                if (fullString.includes(token.toUpperCase())) {
-                    state.game.letterStats[token] = (state.game.letterStats[token] || 0) + 1;
-                }
-            });
+            state.game.history.add(wort.join('').toUpperCase());
+            state.settings.buchstaben.forEach(token => { if (wort.join('').toUpperCase().includes(token.toUpperCase())) state.game.letterStats[token] = (state.game.letterStats[token] || 0) + 1; });
 
             dom.card.text.innerHTML = '';
             wort.forEach((silbe, i) => {
@@ -318,7 +269,6 @@
                 if (state.settings.abstand && i < wort.length - 1) span.style.marginRight = '0.2em';
                 dom.card.text.appendChild(span);
             });
-
             adjustFontSize();
 
             const card = dom.card.swipe;
@@ -327,58 +277,36 @@
             card.style.opacity = '0';
             dom.card.overlay.style.opacity = '0';
             dom.card.content.style.backgroundColor = 'white';
-            
             requestAnimationFrame(() => {
                 card.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 card.style.transform = 'translate(0,0) rotate(0) scale(1)';
                 card.style.opacity = '1';
-                
-                // Start Time
                 state.game.wordStartTime = Date.now();
             });
         }
 
-        // --- SMART WORD SELECTION ---
         function selectWordPriority() {
             const allowedCharsFlat = new Set();
-            state.settings.buchstaben.forEach(token => {
-                token.toUpperCase().split('').forEach(char => allowedCharsFlat.add(char));
-            });
-
+            state.settings.buchstaben.forEach(token => token.toUpperCase().split('').forEach(char => allowedCharsFlat.add(char)));
+            
             const realCandidates = WOERTERBUCH.filter(silben => {
                 if(silben.length < state.settings.minSilben || silben.length > state.settings.maxSilben) return false;
                 const fullWord = silben.join('').toUpperCase();
-                for(const char of fullWord) {
-                    if(!allowedCharsFlat.has(char)) return false;
-                }
+                for(const char of fullWord) { if(!allowedCharsFlat.has(char)) return false; }
                 return true;
             });
 
-            const scoreWord = (silbenArray) => {
-                const wordStr = silbenArray.join('').toUpperCase();
-                let score = 0;
-                state.settings.buchstaben.forEach(token => {
-                    if(wordStr.includes(token.toUpperCase())) {
-                        const count = state.game.letterStats[token] || 0;
-                        score += (count === 0 ? 100 : 1 / (count + 1));
-                    }
-                });
-                return score;
-            };
-
-            if (realCandidates.length > 0) {
-                const unusedReal = realCandidates.filter(w => !state.game.history.has(w.join('')));
-                const pool = unusedReal.length > 0 ? unusedReal : realCandidates;
-                pool.sort((a, b) => scoreWord(b) - scoreWord(a));
-                const topK = Math.min(pool.length, 3);
-                return pool[Math.floor(Math.random() * topK)];
+            // 1. Frische Echte Wörter
+            const freshReal = realCandidates.filter(w => !state.game.history.has(w.join('').toUpperCase()));
+            if (freshReal.length > 0) {
+                return freshReal[Math.floor(Math.random() * freshReal.length)];
             }
 
+            // 2. Fallback Fantasie (wenn keine echten mehr da sind)
             const targetLen = determineTargetLength();
             return generateBalancedFantasyWord(targetLen);
         }
 
-        // 75% Wahrscheinlichkeit für maximale Silbenlänge (wenn möglich)
         function determineTargetLength() {
             const min = state.settings.minSilben;
             const max = state.settings.maxSilben;
@@ -391,62 +319,28 @@
             const v = state.settings.buchstaben.filter(b => VOKALE_LISTE.includes(b));
             const k = state.settings.buchstaben.filter(b => !VOKALE_LISTE.includes(b) && !DIPHTHONGE_LISTE.includes(b));
             const d = state.settings.buchstaben.filter(b => DIPHTHONGE_LISTE.includes(b));
-            
             if (v.length === 0 && d.length === 0) return ["A".repeat(length).split('')]; 
 
-            const pickWeighted = (pool, exclude) => {
+            const pickWeighted = (pool) => {
                 if (pool.length === 0) return '';
-                let candidates = pool;
-                if (exclude && pool.length > 1) candidates = pool.filter(c => c !== exclude);
-                
                 let minUsage = Infinity;
-                candidates.forEach(char => {
-                    const u = state.game.letterStats[char] || 0;
-                    if (u < minUsage) minUsage = u;
-                });
-                const best = candidates.filter(char => (state.game.letterStats[char] || 0) === minUsage);
-                return best[Math.floor(Math.random() * best.length)];
+                pool.forEach(char => { const u = state.game.letterStats[char] || 0; if (u < minUsage) minUsage = u; });
+                const candidates = pool.filter(char => (state.game.letterStats[char] || 0) === minUsage);
+                return candidates[Math.floor(Math.random() * candidates.length)];
             };
-
-            let lastConsonant = '';
-            let lastVowel = '';
 
             for(let i=0; i<length; i++) {
                 let s = '';
                 let attempts = 0;
-                let valid = false;
-
                 do {
                     let type = 'KV';
-                    if(Math.random() < 0.1 && i === 0) type = 'V'; 
-                    if (i > 0 && VOKALE_LISTE.includes(res[i-1].slice(-1).toUpperCase())) type = 'KV';
-
+                    if(Math.random() < 0.1) type = 'V';
                     s = '';
-                    let curC = '', curV = '';
-
-                    if(type === 'KV' && k.length > 0) {
-                        curC = pickWeighted(k, lastConsonant);
-                        s += curC;
-                    }
-                    
-                    if(d.length > 0 && Math.random() < 0.2) {
-                        s += pickWeighted(d, lastVowel); // Treat diphthong like vowel for exclusion
-                    } else if(v.length > 0) {
-                        curV = pickWeighted(v, lastVowel);
-                        s += curV;
-                    }
-                    
-                    valid = true;
-                    if (length >= 3 && i > 0 && s === res[i-1]) valid = false;
-                    if (length >= 4 && i > 1 && s === res[i-2]) valid = false;
-                    if (i > 0 && res[i-1].slice(-1).toLowerCase() === s.charAt(0).toLowerCase()) valid = false;
-
-                    if (valid) {
-                        if (curC) lastConsonant = curC;
-                        if (curV) lastVowel = curV;
-                    }
+                    if(type === 'KV' && k.length > 0) s += pickWeighted(k);
+                    if(d.length > 0 && Math.random() < 0.3) s += pickWeighted(d);
+                    else if(v.length > 0) s += pickWeighted(v);
                     attempts++;
-                } while (!valid && attempts < 20);
+                } while (length >= 3 && i > 0 && s === res[i-1] && attempts < 10);
                 res.push(s);
             }
             return res;
@@ -457,35 +351,26 @@
                 state.game.richtig++;
                 const duration = Date.now() - state.game.wordStartTime;
                 let factor = 1.0;
-                if (duration < 2000) factor = 2.0; 
-                else if (duration > 5000) factor = 0.5;
+                if (duration < 2000) factor = 2.0; else if (duration > 5000) factor = 0.5;
                 spawnParticles(factor);
             }
             state.game.runde++;
             setTimeout(() => nextCard(), 300);
         }
 
-        // --- SWIPE ---
         function initSwipeLogic() {
             let startX = 0, isDragging = false;
             const card = dom.card.swipe;
             const content = dom.card.content;
             
-            const start = (x) => {
-                if (state.game.finished) return;
-                startX = x;
-                isDragging = true;
-                card.style.transition = 'none';
-            };
-            
+            const start = (x) => { if (state.game.finished) return; startX = x; isDragging = true; card.style.transition = 'none'; };
             const move = (x) => {
                 if (!isDragging) return;
                 const diff = x - startX;
                 card.style.transform = `translate(${diff}px, 0) rotate(${diff * 0.05}deg)`;
-                
                 const opacity = Math.min(Math.abs(diff) / 150, 0.3);
                 if (diff > 0) {
-                    content.style.backgroundColor = `rgba(34, 197, 94, ${0.1 + opacity * 0.5})`; // Grünlich
+                    content.style.backgroundColor = `rgba(34, 197, 94, ${0.1 + opacity * 0.5})`;
                     dom.card.overlay.innerHTML = `<svg class="w-32 h-32 text-green-600 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>`;
                 } else {
                     content.style.backgroundColor = `rgba(107, 114, 128, ${0.1 + opacity * 0.5})`;
@@ -493,12 +378,10 @@
                 }
                 dom.card.overlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
             };
-            
             const end = (x) => {
                 if (!isDragging) return;
                 isDragging = false;
                 const diff = x - startX;
-                
                 if (Math.abs(diff) > 100) {
                     const dir = diff > 0 ? 1 : -1;
                     card.style.transition = 'transform 0.2s ease-out';
@@ -520,44 +403,25 @@
             window.addEventListener('mouseup', e => end(e.clientX));
         }
 
-        // --- PHYSICS ---
         function startPhysics() {
             stopPhysics();
             const container = document.getElementById('2d-canvas-container');
             engine = Matter.Engine.create({ enableSleeping: true });
             world = engine.world;
-            
-            render = Matter.Render.create({
-                element: container,
-                engine: engine,
-                options: { width: container.clientWidth, height: container.clientHeight, wireframes: false, background: 'transparent' }
-            });
-            
+            render = Matter.Render.create({ element: container, engine: engine, options: { width: container.clientWidth, height: container.clientHeight, wireframes: false, background: 'transparent' } });
             createWalls(container.clientWidth, container.clientHeight);
-            
             (function loop() {
                 if (!engine) return;
                 window.requestAnimationFrame(loop);
-                
-                // Update Physics
                 Matter.Engine.update(engine, 1000/60);
-                
-                // Custom Render mit Zoom
                 const ctx = render.context;
-                const w = render.canvas.width;
-                const h = render.canvas.height;
-
-                ctx.clearRect(0, 0, w, h);
-                
+                ctx.clearRect(0, 0, render.canvas.width, render.canvas.height);
                 ctx.save();
-                // Zoom Logic: Center at (width/2, height/2)
-                // Zoom interpolation
+                const w = render.canvas.width, h = render.canvas.height;
                 state.view.zoom += (state.view.targetZoom - state.view.zoom) * 0.05;
-                
                 ctx.translate(w/2, h/2);
                 ctx.scale(state.view.zoom, state.view.zoom);
                 ctx.translate(-w/2, -h/2);
-
                 Matter.Composite.allBodies(world).forEach(b => {
                     if (b.label === 'wall' || b.label === 'stirrer') return;
                     ctx.beginPath();
@@ -570,24 +434,12 @@
             physicsActive = true;
         }
 
-        function stopPhysics() {
-            engine = null; render = null; stirrer = null; physicsActive = false;
-            document.getElementById('2d-canvas-container').innerHTML = '';
-        }
-
-        function resizePhysics() {
-            if(!render) return;
-            const container = document.getElementById('2d-canvas-container');
-            render.canvas.width = container.clientWidth;
-            render.canvas.height = container.clientHeight;
-            createWalls(container.clientWidth, container.clientHeight);
-        }
-
+        function stopPhysics() { engine = null; render = null; stirrer = null; physicsActive = false; document.getElementById('2d-canvas-container').innerHTML = ''; }
+        function resizePhysics() { if(!render) return; const container = document.getElementById('2d-canvas-container'); render.canvas.width = container.clientWidth; render.canvas.height = container.clientHeight; createWalls(container.clientWidth, container.clientHeight); }
+        
         function createWalls(w, h) {
             if(!world) return;
             Matter.Composite.clear(world, false, true); 
-            const oldWalls = Matter.Composite.allBodies(world).filter(b => b.label === 'wall');
-            Matter.Composite.remove(world, oldWalls);
             const th = 200;
             const wallOpts = { isStatic: true, label: 'wall', friction: 1, restitution: 0 };
             Matter.Composite.add(world, [
@@ -601,160 +453,78 @@
             if(!engine) return;
             const w = render.canvas.width;
             const h = render.canvas.height;
-            
-            // --- KORREKTUR: Dynamische Größe & Anzahl für Füllung ---
-            let baseRadius = Math.min(Math.max(w * 0.015, 5), 15); 
-
-            // Anzahl
-            const baseCount = 30; 
+            let baseRadius = Math.min(Math.max(w * 0.02, 10), 20); // GRÖSSER (10-20px)
+            const baseCount = 15; // Weniger, da größer
             let count = Math.floor(baseCount * factor);
-            if (count > 100) count = 100; 
-            if (count < 10) count = 10;
-
+            if (count > 60) count = 60; if (count < 5) count = 5;
             const color = RAINBOW_COLORS[state.game.colorIndex];
             state.game.colorIndex = (state.game.colorIndex + 1) % RAINBOW_COLORS.length;
-
             for(let i=0; i<count; i++) {
-                // Varianz in der Größe: +/- 40%
-                const r = baseRadius * (0.6 + Math.random() * 0.8);
-
+                const r = baseRadius * (0.7 + Math.random() * 0.6); // Varianz
                 const x = Math.random() * w * 0.8 + w * 0.1;
                 const y = -Math.random() * 300 - 50;
-                const body = Matter.Bodies.circle(x, y, r, {
-                    restitution: 0.1, friction: 0.5, frictionAir: 0.05, density: 0.04,
-                    render: { fillStyle: color }
-                });
+                const body = Matter.Bodies.circle(x, y, r, { restitution: 0.1, friction: 0.5, frictionAir: 0.05, density: 0.04, render: { fillStyle: color } });
                 Matter.Composite.add(world, body);
             }
         }
 
-        // --- MISC ---
         function adjustFontSize() {
             const el = dom.card.text;
             const parent = dom.card.textContainer;
             let size = 4;
             el.style.fontSize = `${size}rem`;
-            while ((el.scrollWidth > parent.clientWidth || el.scrollHeight > parent.clientHeight) && size > 1) {
-                size -= 0.2;
-                el.style.fontSize = `${size}rem`;
-            }
+            while ((el.scrollWidth > parent.clientWidth || el.scrollHeight > parent.clientHeight) && size > 1) { size -= 0.2; el.style.fontSize = `${size}rem`; }
         }
 
         function moveStirrer(e) {
             if (!state.game.finished || dom.misc.losContainer.classList.contains('hidden')) return;
             if(e.type === 'touchmove') e.preventDefault();
-            
-            let x, y;
-            if (e.type.startsWith('touch')) {
-                 x = e.touches[0].clientX;
-                 y = e.touches[0].clientY;
-            } else {
-                 x = e.clientX;
-                 y = e.clientY;
-            }
-            
+            let x = e.touches ? e.touches[0].clientX : e.clientX;
+            let y = e.touches ? e.touches[0].clientY : e.clientY;
             if (!stirrer && engine) {
                 stirrer = Matter.Bodies.circle(x, y, 80, { isStatic: true, label: 'stirrer' });
                 Matter.Composite.add(engine.world, stirrer);
-            } else if (stirrer) {
-                Matter.Body.setPosition(stirrer, {x, y});
-            }
+            } else if (stirrer) Matter.Body.setPosition(stirrer, {x, y});
         }
 
         function prepareEndPhase() {
             state.game.finished = true;
             dom.card.swipe.classList.add('hidden');
             dom.misc.losContainer.classList.remove('hidden');
-            if(world) {
-                Matter.Composite.allBodies(world).forEach(b => {
-                    Matter.Sleeping.set(b, false);
-                    b.sleepThreshold = -1; 
-                });
-            }
+            if(world) Matter.Composite.allBodies(world).forEach(b => { Matter.Sleeping.set(b, false); b.sleepThreshold = -1; });
         }
 
         function triggerExplosion() {
             dom.misc.losContainer.classList.add('hidden');
             if(stirrer) { Matter.Composite.remove(engine.world, stirrer); stirrer = null; }
-            
-            // 1. Wände weg
             const walls = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'wall');
             Matter.Composite.remove(engine.world, walls);
-
-            // 2. Zoom Out
             state.view.targetZoom = 0.4;
-
-            // 3. Massive Kraft mit hoher Varianz
             Matter.Composite.allBodies(engine.world).forEach(b => {
                 if(!b.isStatic) {
-                    Matter.Sleeping.set(b, false);
-                    const dirX = (Math.random() - 0.5) * 3.0; 
-                    // Kraft abhängig von Masse (0.05 * mass = Grundbeschleunigung) * Faktor
-                    // Hier: 5x bis 15x so stark wie normal
-                    const forceMagnitude = 0.05 * b.mass * (5 + Math.random() * 10.0); 
-
-                    Matter.Body.applyForce(b, b.position, { 
-                        x: dirX * forceMagnitude * 0.1, 
-                        y: -1 * forceMagnitude 
-                    });
-                    
-                    Matter.Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.5);
+                    // Stärkere, zufällige Explosion
+                    const power = 0.5 + Math.random() * 1.0; 
+                    const dirX = (Math.random() - 0.5) * 0.8;
+                    Matter.Body.applyForce(b, b.position, { x: dirX, y: -power });
                 }
             });
-            setTimeout(showEnd, 4000); 
-        }
-
-        function showEnd() {
-            state.game.active = false;
-            stopPhysics();
-            dom.views.spiel.classList.add('hidden');
-            dom.views.ende.classList.remove('hidden');
-            dom.views.ende.classList.add('flex');
-            
-            dom.stats.resRight.textContent = state.game.richtig;
-            dom.stats.resMax.textContent = state.settings.woerter;
-            
-            const pct = state.game.richtig / state.settings.woerter;
-            let stars = 1; if(pct > 0.4) stars = 2; if(pct > 0.6) stars = 3; if(pct > 0.8) stars = 4; if(pct > 0.95) stars = 5;
-            dom.stats.stars.innerHTML = Array(5).fill(0).map((_, i) => `<span class="${i < stars ? 'text-yellow-400' : 'text-gray-200'}">★</span>`).join('');
+            setTimeout(showEnd, 4000);
         }
 
         function saveSettings() {
-            const checked = dom.inputs.container.querySelectorAll('input:checked');
-            const d = {
-                buchstaben: Array.from(checked).map(c => c.value),
-                minSilben: parseInt(dom.inputs.min.value), 
-                maxSilben: parseInt(dom.inputs.max.value), 
-                woerter: parseInt(dom.inputs.woerter.value),
-                farben: dom.inputs.color.checked, 
-                abstand: dom.inputs.gap.checked
-            };
+            const d = { buchstaben: Array.from(dom.inputs.container.querySelectorAll(':checked')).map(c => c.value), minSilben: parseInt(dom.inputs.min.value), maxSilben: parseInt(dom.inputs.max.value), woerter: parseInt(dom.inputs.woerter.value), farben: dom.inputs.color.checked, abstand: dom.inputs.gap.checked };
             if (d.minSilben > d.maxSilben) d.minSilben = d.maxSilben;
             state.settings = d;
-            try {
-                localStorage.setItem('leseAppConf', JSON.stringify(d));
-            } catch(e) {}
+            try { localStorage.setItem('leseAppConf', JSON.stringify(d)); } catch(e) {}
         }
 
         function ladeEinstellungen() {
             let d = { buchstaben: ['A','M','O','L','I'], minSilben: 1, maxSilben: 2, woerter: 10, farben: true, abstand: false };
-            try { 
-                const s = localStorage.getItem('leseAppConf'); 
-                if(s) {
-                    const parsed = JSON.parse(s);
-                    d = {...d, ...parsed};
-                    if (!Array.isArray(d.buchstaben)) d.buchstaben = ['A','M','O','L','I'];
-                }
-            } catch(e){
-                localStorage.removeItem('leseAppConf');
-            }
+            try { const s = localStorage.getItem('leseAppConf'); if(s) { const p = JSON.parse(s); d = {...d, ...p}; if(!Array.isArray(d.buchstaben)) d.buchstaben = ['A','M','O','L','I']; } } catch(e) { localStorage.removeItem('leseAppConf'); }
             state.settings = d;
             dom.inputs.min.value = d.minSilben; dom.inputs.max.value = d.maxSilben; dom.inputs.woerter.value = d.woerter;
             dom.inputs.color.checked = d.farben; dom.inputs.gap.checked = d.abstand;
-            
-            dom.inputs.container.querySelectorAll('input').forEach(cb => {
-                cb.checked = d.buchstaben.includes(cb.value);
-            });
+            dom.inputs.container.querySelectorAll('input').forEach(cb => cb.checked = d.buchstaben.includes(cb.value));
         }
     </script>
 </body>
