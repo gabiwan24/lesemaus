@@ -2,15 +2,10 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Lese-Lern-App</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Matter.js (2D Physik Engine) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-
-    <!-- Google Font: Playwrite DE Grund -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playwrite+DE+Grund:wght@100..400&display=swap" rel="stylesheet">
@@ -19,789 +14,747 @@
             font-family: 'Playwrite DE Grund', cursive;
             overscroll-behavior: none;
             user-select: none;
-            touch-action: none; /* Wichtig für Touch-Events auf dem ganzen Screen */
-        }
-        input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type=number] {
-            -moz-appearance: textfield;
+            -webkit-user-select: none;
+            touch-action: none;
+            background-color: #f9fafb;
         }
         
-        .fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        .animate-pop-in {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
         }
-        
+
+        .card-shadow {
+            box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1);
+        }
+
         #swipe-feedback-bg {
-            transition: background-color 0.1s linear;
-            pointer-events: none;
+            transition: background-color 0.15s ease-out;
+            will-change: background-color;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; visibility: visible; }
+            to { opacity: 0; visibility: hidden; }
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 w-screen h-screen overflow-hidden flex flex-col">
+<body class="w-screen h-[100dvh] overflow-hidden flex flex-col select-none">
 
-    <!-- Hintergrund für Swipe-Feedback -->
-    <div id="swipe-feedback-bg" class="absolute inset-0 z-0 bg-transparent"></div>
+    <div id="intro-screen" class="fixed inset-0 z-[100] bg-white flex items-center justify-center transition-opacity duration-500">
+        <h1 class="text-5xl md:text-7xl font-bold text-blue-600 animate-bounce">Lesemaus</h1>
+    </div>
 
-    <!-- Hauptcontainer -->
-    <div id="app" class="relative w-full h-full flex flex-col z-10">
+    <div id="swipe-feedback-bg" class="absolute inset-0 z-0 pointer-events-none"></div>
 
-        <!-- 1. Startbildschirm (Einstellungen) -->
-        <div id="startbildschirm" class="flex flex-col h-full p-4 md:p-8 bg-white z-50 relative">
-            <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600 mb-6">Lese-Training</h1>
+    <div id="app" class="relative w-full h-full z-10 flex flex-col hidden opacity-0 transition-opacity duration-500">
 
-            <div class="flex-grow overflow-y-auto pb-24">
-                <!-- Gelernte Buchstaben -->
-                <fieldset class="mb-6">
-                    <legend class="text-base font-semibold mb-3">Gelernte Buchstaben:</legend>
-                    <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-                        <!-- Checkboxen werden per JS eingefügt -->
+        <!-- 1. EINSTELLUNGEN -->
+        <div id="startbildschirm" class="flex flex-col h-full p-3 bg-white z-50 relative">
+            <h1 class="text-2xl font-bold text-center text-blue-600 mb-2 mt-1 shrink-0">Lese-Training</h1>
+
+            <div class="flex-grow flex flex-col gap-2 overflow-hidden">
+                <fieldset class="border border-gray-200 rounded-xl p-2 flex flex-col min-h-0 shrink">
+                    <legend class="text-sm font-semibold px-2 text-gray-500">Gelernte Buchstaben:</legend>
+                    <div class="overflow-y-auto px-1">
+                        <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 gap-1.5 pb-1"></div>
                     </div>
                 </fieldset>
 
-                <!-- Einstellungen -->
-                <fieldset class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                    <legend class="text-base font-semibold mb-3 col-span-1 md:col-span-2">Einstellungen:</legend>
-
-                    <div class="grid grid-cols-3 gap-x-4 gap-y-2 col-span-1 md:col-span-2">
+                <fieldset class="border border-gray-200 rounded-xl p-2 shrink-0">
+                    <legend class="text-sm font-semibold px-2 text-gray-500">Optionen:</legend>
+                    <div class="grid grid-cols-3 gap-2 mb-2">
                         <div>
-                            <label for="min-silben" class="block text-sm font-medium text-gray-700">Min. Silben</label>
-                            <input type="number" id="min-silben" value="2" min="1" max="5" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 text-center">Min</label>
+                            <input type="number" id="min-silben" value="1" min="1" max="5" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-gray-50 text-lg font-bold">
                         </div>
                         <div>
-                            <label for="max-silben" class="block text-sm font-medium text-gray-700">Max. Silben</label>
-                            <input type="number" id="max-silben" value="3" min="1" max="5" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 text-center">Max</label>
+                            <input type="number" id="max-silben" value="2" min="1" max="5" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-gray-50 text-lg font-bold">
                         </div>
                         <div>
-                            <label for="woerter-pro-runde" class="block text-sm font-medium text-gray-700">Wörter</label>
-                            <input type="number" id="woerter-pro-runde" value="10" min="1" max="50" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 text-center">Wörter</label>
+                            <input type="number" id="woerter-pro-runde" value="10" min="1" max="50" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-gray-50 text-lg font-bold">
                         </div>
                     </div>
-                    
-                    <div class="space-y-3 col-span-1 md:col-span-2 mt-4">
-                        <div class="relative flex items-start">
-                            <div class="flex h-6 items-center">
-                                <input id="silben-faerben" type="checkbox" checked class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                            </div>
-                            <div class="ml-3 text-base leading-6">
-                                <label for="silben-faerben" class="font-medium">Silben abwechselnd einfärben (blau/rot)</label>
-                            </div>
+                    <div class="flex justify-between gap-2">
+                        <div class="flex-1 bg-gray-50 p-1.5 rounded-lg flex items-center justify-center gap-2 border border-gray-100">
+                            <input id="silben-faerben" type="checkbox" checked class="h-4 w-4 text-blue-600 rounded">
+                            <label for="silben-faerben" class="text-xs font-medium text-gray-600">Bunt</label>
                         </div>
-                        <div class="relative flex items-start">
-                            <div class="flex h-6 items-center">
-                                <input id="silben-abstand" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                            </div>
-                            <div class="ml-3 text-base leading-6">
-                                <label for="silben-abstand" class="font-medium">Silbenabstand anzeigen</label>
-                            </div>
+                        <div class="flex-1 bg-gray-50 p-1.5 rounded-lg flex items-center justify-center gap-2 border border-gray-100">
+                            <input id="silben-abstand" type="checkbox" class="h-4 w-4 text-blue-600 rounded">
+                            <label for="silben-abstand" class="text-xs font-medium text-gray-600">Abstand</label>
                         </div>
                     </div>
                 </fieldset>
             </div>
 
-            <div class="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-4 px-6 rounded-lg shadow-md transition-transform duration-150 ease-in-out active:scale-95">
+            <div class="shrink-0 pt-3 pb-2 safe-area-pb">
+                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform">
                     Start!
                 </button>
             </div>
         </div>
 
-        <!-- 2. Spielbildschirm -->
-        <div id="spiel" class="hidden w-full h-full relative overflow-hidden">
-            
-            <!-- Burger-Menü -->
-            <div class="absolute top-4 right-4 z-50">
-                <button id="einstellungen-button" class="text-gray-400 hover:text-blue-600 bg-white/80 rounded-full p-2 shadow-sm">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+        <!-- 2. SPIELFELD -->
+        <div id="spiel" class="hidden w-full h-full relative flex flex-col">
+            <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
+                <div id="fortschritt-anzeige" class="text-gray-500 font-bold text-sm bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-gray-100">
+                    Wort <span id="aktuelles-wort-nr">1</span> / <span id="max-woerter-nr">10</span>
+                </div>
+                <button id="einstellungen-button" class="text-gray-400 hover:text-blue-600 bg-white/90 backdrop-blur p-2 rounded-full shadow-sm border border-gray-100 pointer-events-auto active:scale-90 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                 </button>
             </div>
 
-            <!-- Fortschritt -->
-            <div id="fortschritt-anzeige" class="w-full text-center text-gray-500 text-sm absolute top-6 left-0 z-40 pointer-events-none font-bold">
-                Wort <span id="aktuelles-wort-nr">1</span> / <span id="max-woerter-nr">10</span>
-            </div>
+            <div id="2d-canvas-container" class="absolute inset-0 z-0 w-full h-full"></div>
 
-            <!-- 2D Canvas Container (Hintergrund) -->
-            <div id="2d-canvas-container" class="absolute inset-0 z-0 bg-white">
-                <!-- Canvas wird hier per JS eingefügt -->
-            </div>
-
-            <!-- Karten-Ebene (Vordergrund) -->
-            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-                
-                <!-- Die Swipe-Karte -->
-                <div id="word-card" class="pointer-events-auto bg-white rounded-3xl shadow-2xl border border-gray-100 w-11/12 max-w-md aspect-[3/2] flex items-center justify-center cursor-grab active:cursor-grabbing touch-none transform transition-transform will-change-transform relative">
-                    
-                    <div id="wort-anzeige-container" class="w-full h-full flex items-center justify-center overflow-hidden p-6 relative z-10">
-                        <span id="wort-anzeige" class="font-bold whitespace-nowrap select-none pointer-events-none text-gray-800" style="font-size: 4rem;">Laden...</span>
-                    </div>
-
-                    <div id="card-overlay" class="absolute inset-0 rounded-3xl pointer-events-none opacity-0 transition-opacity duration-200 flex items-center justify-center z-0">
-                        <!-- Inhalt wird per JS gesetzt -->
+            <div class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4 pb-20">
+                <div id="card-swipe-layer" class="w-full max-w-xs aspect-[3/2] pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none will-change-transform relative">
+                    <div id="card-content-layer" class="w-full h-full bg-white rounded-3xl card-shadow border border-gray-200 flex items-center justify-center relative overflow-hidden bg-white select-none transition-colors duration-150">
+                        <div id="wort-anzeige-container" class="w-full h-full flex items-center justify-center p-4 relative z-10 pointer-events-none">
+                            <span id="wort-anzeige" class="font-bold whitespace-nowrap select-none text-gray-800 leading-none"></span>
+                        </div>
+                        <div id="card-overlay" class="absolute inset-0 z-20 flex items-center justify-center opacity-0 transition-opacity duration-150 bg-transparent pointer-events-none"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- "Los" Button für Konfetti-Interaktion -->
-            <div id="los-button-container" class="hidden absolute bottom-12 left-0 right-0 flex justify-center z-50 pointer-events-auto">
-                <button id="los-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-4 px-12 rounded-full shadow-xl transition-transform duration-150 ease-in-out active:scale-95 animate-bounce">
+            <div id="los-button-container" class="hidden absolute bottom-10 left-0 right-0 flex justify-center z-50 pointer-events-none">
+                <button id="los-button" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-3 px-12 rounded-full shadow-xl transition-transform duration-150 hover:scale-105 active:scale-95 animate-bounce">
                     Los!
                 </button>
             </div>
         </div>
 
-        <!-- 3. Auswertungsbildschirm -->
-        <div id="auswertung" class="hidden flex-col h-full justify-center items-center text-center p-4 bg-white z-50 absolute inset-0">
-            <h2 class="text-4xl font-bold text-blue-600 mb-8">Super!</h2>
-            <div id="sterne-anzeige" class="text-5xl text-yellow-400 mb-12"></div>
-            <p id="auswertung-text" class="text-xl mb-12">Du hast <span id="richtige-woerter-anzahl">0</span> von <span id="max-woerter-anzahl">10</span> Wörtern richtig gelesen.</p>
-            <button id="zurueck-button" class="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-4 px-6 rounded-lg shadow-md transition-transform duration-150 ease-in-out active:scale-95">Nochmal!</button>
+        <!-- 3. AUSWERTUNG -->
+        <div id="auswertung" class="hidden absolute inset-0 z-[60] bg-white flex flex-col justify-center items-center p-6">
+            <h2 class="text-5xl font-bold text-blue-600 mb-8 drop-shadow-sm">Super!</h2>
+            <div id="sterne-anzeige" class="text-7xl text-yellow-400 mb-10 flex gap-2 drop-shadow-md"></div>
+            <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-12 w-full max-w-xs text-center">
+                <p class="text-gray-500 text-lg mb-1">Ergebnis</p>
+                <p class="text-3xl font-bold text-gray-800">
+                    <span id="richtige-woerter-anzahl" class="text-green-600">0</span> / <span id="max-woerter-anzahl">10</span>
+                </p>
+            </div>
+            <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">
+                Nochmal spielen
+            </button>
         </div>
+
     </div>
 
     <script>
-        // --- Globale Elemente ---
-        const startbildschirm = document.getElementById('startbildschirm');
-        const spiel = document.getElementById('spiel');
-        const auswertung = document.getElementById('auswertung');
-        const startButton = document.getElementById('start-button');
-        const buchstabenContainer = document.getElementById('buchstaben-container');
-        const minSilbenInput = document.getElementById('min-silben');
-        const maxSilbenInput = document.getElementById('max-silben');
-        const woerterProRundeInput = document.getElementById('woerter-pro-runde');
-        const silbenFaerbenCheckbox = document.getElementById('silben-faerben');
-        const silbenAbstandCheckbox = document.getElementById('silben-abstand');
-        const wordCard = document.getElementById('word-card');
-        const wortContainer = document.getElementById('wort-anzeige');
-        const cardOverlay = document.getElementById('card-overlay');
-        const bgFeedback = document.getElementById('swipe-feedback-bg');
-        const einstellungenButton = document.getElementById('einstellungen-button');
-        const fortschrittAnzeige = document.getElementById('fortschritt-anzeige');
-        const aktuellesWortNr = document.getElementById('aktuelles-wort-nr');
-        const maxWoerterNr = document.getElementById('max-woerter-nr');
-        const sterneAnzeige = document.getElementById('sterne-anzeige');
-        const richtigeWoerterAnzahl = document.getElementById('richtige-woerter-anzahl');
-        const maxWoerterAnzahl = document.getElementById('max-woerter-anzahl');
-        const zurueckButton = document.getElementById('zurueck-button');
-        const losButtonContainer = document.getElementById('los-button-container'); 
-        const losButton = document.getElementById('los-button'); 
-
-        // --- 2D Physik Variablen (Matter.js) ---
-        let engine, render, runner, world;
-        let animationFrameId = null;
-        let stirrerBody = null;
-        
-        // --- App-Zustand ---
-        const state = {
-            vokale: [], konsonanten: [], diphthonge: [], gelernteBuchstaben: [],
-            minSilben: 2, maxSilben: 3, woerterProRunde: 10,
-            silbenFaerben: true, silbenAbstand: false,
-            aktuelleRunde: 0, richtigGelesen: 0, generierteWoerterRunde: new Set(),
-            spielBeendet: false 
-        };
-
+        // --- DATEN ---
         const ALLE_BUCHSTABEN = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü', 'Ei', 'Ai', 'Eu', 'Au', 'B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Y', 'Z', 'Ch', 'Sch', 'Ck'];
         const VOKALE_LISTE = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü'];
         const DIPHTHONGE_LISTE = ['Ei', 'Ai', 'Eu', 'Au'];
-        // NEU: Regenbogen Farben
         const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
+        
+        const WOERTERBUCH = [
+            ['O', 'ma'], ['O', 'pa'], ['Ma', 'ma'], ['Pa', 'pa'], ['La', 'ma'], ['Li', 'mo'], ['Li', 'la'], ['Lo', 'la'], ['Ma', 'li'], ['Mi', 'mi'], ['E', 'sel'], ['Na', 'se'], ['Ro', 'se'], ['So', 'fa'], ['Sa', 'la', 'mi'], ['Sa', 'lat'], ['To', 'ma', 'te'], ['Me', 'lo', 'ne'], ['Ba', 'na', 'ne'], ['Am', 'pel'], ['Ap', 'fel'], ['Son', 'ne'], ['Mon', 'd'], ['Ste', 'rn'], ['Ti', 'sch'], ['Stu', 'hl'], ['Nu', 'del'], ['Pi', 'rat'], ['Ra', 'ke', 'te'], ['Hu', 'nd'], ['Ka', 'tze'], ['Maus'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi', 'sch'], ['Vo', 'gel'], ['Blu', 'me'], ['Wol', 'ke'], ['Re', 'gen'], ['Schnee'], ['Eis'], ['Wa', 'l'], ['Zebra'], ['Lö', 'we'], ['Ti', 'ger'], ['En', 'te'], ['Gan', 's'], ['Huh', 'n'], ['Kuh'], ['Scha', 'f'], ['Pferd'], ['Au', 'to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee'], ['Pa', 'ket'], ['Ka', 'mel'], ['In', 'sel'], ['Pin', 'sel']
+        ];
 
+        // --- STATE ---
+        const state = {
+            settings: { buchstaben: [], minSilben: 1, maxSilben: 2, woerter: 10, farben: true, abstand: false },
+            game: { 
+                runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: false, finished: false,
+                letterStats: {},
+                wordStartTime: 0
+            },
+            view: { zoom: 1, targetZoom: 1 }
+        };
+
+        // --- DOM ---
+        const dom = {
+            intro: document.getElementById('intro-screen'),
+            app: document.getElementById('app'),
+            views: { start: document.getElementById('startbildschirm'), spiel: document.getElementById('spiel'), ende: document.getElementById('auswertung') },
+            inputs: { container: document.getElementById('buchstaben-container'), min: document.getElementById('min-silben'), max: document.getElementById('max-silben'), woerter: document.getElementById('woerter-pro-runde'), color: document.getElementById('silben-faerben'), gap: document.getElementById('silben-abstand') },
+            btns: { start: document.getElementById('start-button'), settings: document.getElementById('einstellungen-button'), back: document.getElementById('zurueck-button'), los: document.getElementById('los-button') },
+            card: { swipe: document.getElementById('card-swipe-layer'), content: document.getElementById('card-content-layer'), textContainer: document.getElementById('wort-anzeige-container'), text: document.getElementById('wort-anzeige'), overlay: document.getElementById('card-overlay'), bg: document.getElementById('swipe-feedback-bg') },
+            stats: { curr: document.getElementById('aktuelles-wort-nr'), max: document.getElementById('max-woerter-nr'), stars: document.getElementById('sterne-anzeige'), resRight: document.getElementById('richtige-woerter-anzahl'), resMax: document.getElementById('max-woerter-anzahl') },
+            misc: { losContainer: document.getElementById('los-button-container') }
+        };
+
+        // --- PHYSICS ---
+        let engine, render, runner, stirrer, physicsActive = false;
+
+        // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
-            initBuchstaben();
-            ladeEinstellungen();
-            initSwipe();
-            
-            startButton.addEventListener('click', zeigeSpiel);
-            einstellungenButton.addEventListener('click', zeigeStartbildschirm);
-            zurueckButton.addEventListener('click', zeigeStartbildschirm);
-            losButton.addEventListener('click', starteExplosionUndAuswertung); 
-            window.addEventListener('resize', handleResize);
-            
-            // Stirrer Events (Maus/Touch)
-            document.addEventListener('mousemove', updateStirrer);
-            document.addEventListener('touchmove', updateStirrer, { passive: false });
+            try {
+                initUI();
+                ladeEinstellungen();
+                initSwipeLogic();
+                startAppSequence();
+                
+                dom.btns.start.onclick = startGame;
+                dom.btns.settings.onclick = showStart;
+                dom.btns.back.onclick = showStart;
+                dom.btns.los.onclick = triggerExplosion;
+                
+                window.addEventListener('resize', () => { if(physicsActive) resizePhysics(); adjustFontSize(); });
+                document.addEventListener('mousemove', moveStirrer);
+                document.addEventListener('touchmove', moveStirrer, {passive: false});
+                document.addEventListener('touchstart', moveStirrer, {passive: false});
+                document.addEventListener('mousedown', moveStirrer);
+            } catch (e) {
+                console.error("Init Error:", e);
+                dom.intro.style.display = 'none';
+                dom.app.classList.remove('hidden');
+                dom.app.style.opacity = '1';
+                dom.views.start.classList.remove('hidden');
+                dom.views.start.classList.add('flex');
+            }
         });
 
-        function handleResize() {
-            adjustFontSize();
-            if (render) {
-                const container = document.getElementById('2d-canvas-container');
-                render.canvas.width = container.clientWidth;
-                render.canvas.height = container.clientHeight;
-                updateWalls(container.clientWidth, container.clientHeight);
-            }
+        function initUI() {
+            dom.inputs.container.innerHTML = ALLE_BUCHSTABEN.map(b => `
+                <div class="flex items-center justify-center">
+                    <input type="checkbox" id="cb-${b}" value="${b}" class="peer hidden">
+                    <label for="cb-${b}" class="w-full text-center py-2 border border-gray-200 rounded-lg cursor-pointer text-gray-600 font-bold select-none transition-colors peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 text-sm sm:text-base bg-white">${b}</label>
+                </div>
+            `).join('');
         }
 
-        // --- Matter.js Physik ---
-        function stopPhysics() {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            if (engine) {
-                Matter.World.clear(engine.world);
-                Matter.Engine.clear(engine);
-                engine = null;
-            }
-            if (render) {
-                render.canvas.remove();
-                render = null;
-            }
-            world = null;
-            stirrerBody = null;
-        }
-
-        function initPhysics() {
-            const container = document.getElementById('2d-canvas-container');
-            if (!container) return;
-            
-            stopPhysics(); 
-
-            engine = Matter.Engine.create({
-                positionIterations: 2, // Weniger Iterationen für Performance
-                velocityIterations: 2,
-                enableSleeping: true // Schlafmodus aktivieren!
-            });
-            world = engine.world;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            container.innerHTML = '';
-            container.appendChild(canvas);
-
-            const ctx = canvas.getContext('2d');
-
-            render = {
-                canvas: canvas,
-                context: ctx,
-                options: { width: canvas.width, height: canvas.height }
-            };
-
-            updateWalls(canvas.width, canvas.height);
-
-            // Game Loop
-            (function loop() {
-                if (!engine) return; 
-                animationFrameId = window.requestAnimationFrame(loop);
-                Matter.Engine.update(engine, 1000 / 60);
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                const bodies = Matter.Composite.allBodies(world);
-                bodies.forEach(body => {
-                    if (body.label === 'wall' || body.label === 'stirrer') return;
-                    
-                    ctx.beginPath();
-                    const r = body.circleRadius;
-                    ctx.arc(body.position.x, body.position.y, r, 0, 2 * Math.PI);
-                    ctx.fillStyle = body.render.fillStyle;
-                    ctx.fill();
-                });
-            })();
-        }
-
-        function updateWalls(w, h) {
-            if (!world) return;
-            
-            const walls = Matter.Composite.allBodies(world).filter(b => b.label === 'wall');
-            Matter.Composite.remove(world, walls);
-
-            const thickness = 200; 
-            // Friction auf 1.0 für Wände, damit nichts rutscht
-            const wallOptions = { isStatic: true, label: 'wall', friction: 1.0, frictionStatic: 1.0 };
-            
-            const ground = Matter.Bodies.rectangle(w / 2, h + thickness / 2, w + 200, thickness, wallOptions);
-            const leftWall = Matter.Bodies.rectangle(0 - thickness/2, h/2 - h, thickness, h * 4, wallOptions);
-            const rightWall = Matter.Bodies.rectangle(w + thickness/2, h/2 - h, thickness, h * 4, wallOptions);
-
-            Matter.Composite.add(world, [ground, leftWall, rightWall]);
-        }
-
-        function updateStirrer(e) {
-            if (!world || !state.spielBeendet || !losButtonContainer.classList.contains('hidden') === false) return;
-            if (losButtonContainer.classList.contains('hidden')) return; 
-
-            let x, y;
-            if (e.type.startsWith('touch')) {
-                x = e.touches[0].clientX;
-                y = e.touches[0].clientY;
-            } else {
-                x = e.clientX;
-                y = e.clientY;
-            }
-
-            if (!stirrerBody) {
-                stirrerBody = Matter.Bodies.circle(x, y, 80, { // Größerer Radius (80)
-                    isStatic: true, 
-                    label: 'stirrer'
-                });
-                Matter.Composite.add(world, stirrerBody);
-            } else {
-                Matter.Body.setPosition(stirrerBody, { x, y });
-            }
-        }
-
-        function addSand() {
-            if (!world) return;
-            
-            const container = document.getElementById('2d-canvas-container');
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            
-            // Radius erhöht auf 9px für weniger Objekte (Performance)
-            const radius = 9; 
-            
-            const particleArea = radius * radius * Math.PI;
-            const screenArea = w * h;
-            // ~50% Füllung anpeilen
-            const totalParticlesNeeded = (screenArea * 0.5) / particleArea;
-            
-            let count = Math.floor(totalParticlesNeeded / state.woerterProRunde);
-            if (count > 150) count = 150; 
-            if (count < 20) count = 20;
-
-            // NEU: Regenbogen-Farbe wählen
-            const color = RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)];
-
-            for (let i = 0; i < count; i++) {
-                const x = (w / 2) + (Math.random() - 0.5) * (w * 0.8); 
-                const y = -50 - Math.random() * 400; 
-                
-                const particle = Matter.Bodies.circle(x, y, radius, {
-                    restitution: 0.0, // KEIN Bounce
-                    friction: 1.0, // Maximale Reibung
-                    frictionStatic: 1.0, // Kein Rutschen
-                    frictionAir: 0.05, // Luftwiderstand bremst Fallen und Bewegung
-                    density: 0.05, 
-                    sleepThreshold: 15, // Schlafen schon bei geringer Inaktivität
-                    render: { fillStyle: color }
-                });
-                
-                Matter.Composite.add(world, particle);
-            }
-        }
-
-        function starteExplosionUndAuswertung() {
-             losButtonContainer.classList.add('hidden'); 
-             
-             if (stirrerBody) {
-                 Matter.Composite.remove(world, stirrerBody);
-                 stirrerBody = null;
-             }
-
-             explode(); 
-             setTimeout(zeigeAuswertung, 3500); 
-        }
-
-        function explode() {
-            if (!world) return;
-            const bodies = Matter.Composite.allBodies(world).filter(b => b.label !== 'wall' && b.label !== 'stirrer');
-            
-            bodies.forEach(body => {
-                const force = {
-                    x: (Math.random() - 0.5) * 0.2,
-                    y: -0.2 - Math.random() * 0.3 
-                };
-                Matter.Body.applyForce(body, body.position, force);
-            });
-        }
-
-        // --- SWIPE LOGIK ---
-        function initSwipe() {
-            let startX = 0;
-            let currentX = 0;
-            let isDragging = false;
-            const threshold = 100; 
-
-            const startDrag = (e) => {
-                if (state.spielBeendet) return; 
-
-                if (e.type === 'touchstart') {
-                    startX = e.touches[0].clientX;
-                } else {
-                    startX = e.clientX;
-                }
-                isDragging = true;
-                wordCard.style.transition = 'none'; 
-            };
-
-            const moveDrag = (e) => {
-                if (!isDragging || state.spielBeendet) return;
-                
-                if (e.type === 'touchmove') {
-                    currentX = e.touches[0].clientX;
-                } else {
-                    currentX = e.clientX;
-                }
-
-                const diff = currentX - startX;
-                const rotation = diff * 0.05; 
-
-                wordCard.style.transform = `translateX(${diff}px) rotate(${rotation}deg)`;
-
-                if (diff > 0) {
-                    const opacity = Math.min(Math.abs(diff) / 200, 0.3);
-                    cardOverlay.style.backgroundColor = `rgba(34, 197, 94, ${opacity})`; 
-                    cardOverlay.innerHTML = '<svg class="w-32 h-32 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>';
-                    cardOverlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
-                } else {
-                    const opacity = Math.min(Math.abs(diff) / 200, 0.2);
-                    cardOverlay.style.backgroundColor = `rgba(156, 163, 175, ${opacity})`; 
-                    cardOverlay.innerHTML = '<svg class="w-32 h-32 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M6 18L18 6M6 6l12 12"></path></svg>';
-                    cardOverlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
-                }
-            };
-
-            const endDrag = () => {
-                if (!isDragging || state.spielBeendet) return;
-                isDragging = false;
-                
-                bgFeedback.style.backgroundColor = 'transparent'; 
-                cardOverlay.style.opacity = 0;
-
-                const diff = currentX - startX;
-
-                if (diff > threshold) {
-                    triggerSwipeAction('right');
-                } else if (diff < -threshold) {
-                    triggerSwipeAction('left');
-                } else {
-                    wordCard.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; 
-                    wordCard.style.transform = 'translateX(0) rotate(0)';
-                }
-                currentX = 0;
-                startX = 0;
-            };
-
-            wordCard.addEventListener('touchstart', startDrag);
-            wordCard.addEventListener('touchmove', moveDrag);
-            wordCard.addEventListener('touchend', endDrag);
-            wordCard.addEventListener('mousedown', startDrag);
-            window.addEventListener('mousemove', moveDrag);
-            window.addEventListener('mouseup', endDrag);
-        }
-
-        function triggerSwipeAction(direction) {
-            if (state.spielBeendet) return; 
-
-            const screenWidth = window.innerWidth;
-            const targetX = direction === 'right' ? screenWidth + 300 : -screenWidth - 300;
-            const rotation = direction === 'right' ? 20 : -20;
-
-            wordCard.style.transition = 'transform 0.4s ease-in';
-            wordCard.style.transform = `translateX(${targetX}px) rotate(${rotation}deg)`;
-
+        function startAppSequence() {
             setTimeout(() => {
-                handleWort(direction === 'right');
-                
-                if (!state.spielBeendet) {
-                    // FIX: Karte explizit zurücksetzen vor der Animation
-                    wordCard.style.transition = 'none';
-                    wordCard.style.transform = 'translateX(0) rotate(0) scale(0.9)';
-                    wordCard.style.opacity = '0'; 
+                dom.intro.classList.add('fade-out');
+                setTimeout(() => {
+                    dom.intro.style.display = 'none';
+                    dom.app.classList.remove('hidden');
+                    void dom.app.offsetWidth;
+                    dom.app.style.opacity = '1';
                     
-                    requestAnimationFrame(() => {
-                        wordCard.classList.add('fade-in');
-                        setTimeout(() => {
-                            wordCard.classList.remove('fade-in');
-                            wordCard.style.opacity = '1';
-                            wordCard.style.transform = 'scale(1)';
-                            wordCard.style.transition = ''; 
-                        }, 500);
-                    });
-                }
-            }, 300);
-        }
-
-        // --- App Logic ---
-        function initBuchstaben() {
-            ALLE_BUCHSTABEN.forEach(b => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center';
-                const input = document.createElement('input');
-                input.type = 'checkbox';
-                input.id = `cb-${b}`;
-                input.value = b;
-                input.className = 'h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500';
-                const label = document.createElement('label');
-                label.htmlFor = `cb-${b}`;
-                label.textContent = b;
-                label.className = 'ml-2 text-base font-medium';
-                div.appendChild(input);
-                div.appendChild(label);
-                buchstabenContainer.appendChild(div);
-            });
-        }
-        
-        function zeigeStartbildschirm() {
-            stopPhysics(); 
-            
-            startbildschirm.classList.remove('hidden');
-            startbildschirm.classList.add('flex');
-            spiel.classList.add('hidden');
-            spiel.classList.remove('flex');
-            auswertung.classList.add('hidden');
-            auswertung.classList.remove('flex');
-            bgFeedback.style.backgroundColor = 'transparent';
-            state.spielBeendet = false; 
-            losButtonContainer.classList.add('hidden'); 
-        }
-
-        function zeigeSpiel() {
-            stopPhysics(); 
-
-            updateStateFromUI();
-            speichereEinstellungen();
-
-            state.aktuelleRunde = 0;
-            state.richtigGelesen = 0;
-            state.generierteWoerterRunde.clear();
-            state.spielBeendet = false; 
-            losButtonContainer.classList.add('hidden'); 
-            wordCard.classList.remove('hidden'); 
-            fortschrittAnzeige.classList.remove('hidden');
-
-            // FIX: Karte zurücksetzen beim Spielstart (sofort unsichtbar)
-            wordCard.style.transition = 'none';
-            wordCard.style.transform = 'translateX(0) rotate(0) scale(1)';
-            wordCard.style.opacity = '0'; // Zuerst unsichtbar
-            wordCard.classList.remove('fade-in');
-
-            startbildschirm.classList.add('hidden');
-            startbildschirm.classList.remove('flex');
-            spiel.classList.remove('hidden');
-            spiel.classList.add('flex');
-            auswertung.classList.add('hidden');
-            auswertung.classList.remove('flex');
+                    dom.views.start.classList.remove('hidden');
+                    dom.views.start.classList.add('flex');
+                }, 500);
+            }, 1500);
             
             setTimeout(() => {
-                initPhysics(); 
-                naechstesWort();
-                
-                // Initiale Animation (erst jetzt einblenden)
-                wordCard.style.opacity = '0';
-                wordCard.style.transform = 'scale(0.9)';
-                requestAnimationFrame(() => {
-                    wordCard.classList.add('fade-in');
-                    setTimeout(() => wordCard.classList.remove('fade-in'), 500);
-                });
-            }, 50);
-        }
-        
-        function zeigeAuswertung() {
-            startbildschirm.classList.add('hidden');
-            spiel.classList.add('hidden');
-            spiel.classList.remove('flex');
-            auswertung.classList.remove('hidden');
-            auswertung.classList.add('flex');
-            
-            richtigeWoerterAnzahl.textContent = state.richtigGelesen;
-            maxWoerterAnzahl.textContent = state.woerterProRunde;
-
-            const prozentsatz = state.richtigGelesen / state.woerterProRunde;
-            let sterne = 0;
-            if (prozentsatz >= 0.95) sterne = 5;
-            else if (prozentsatz >= 0.8) sterne = 4;
-            else if (prozentsatz >= 0.6) sterne = 3;
-            else if (prozentsatz >= 0.4) sterne = 2;
-            else if (prozentsatz > 0) sterne = 1;
-
-            sterneAnzeige.innerHTML = '';
-            for(let i = 0; i < 5; i++) {
-                const span = document.createElement('span');
-                span.textContent = '★';
-                span.className = i < sterne ? 'text-yellow-400' : 'text-gray-300';
-                sterneAnzeige.appendChild(span);
-            }
+                if(dom.intro.style.display !== 'none') {
+                    dom.intro.style.display = 'none';
+                    dom.app.classList.remove('hidden');
+                    dom.app.style.opacity = '1';
+                    dom.views.start.classList.remove('hidden');
+                    dom.views.start.classList.add('flex');
+                }
+            }, 3000);
         }
 
-        function handleWort(richtig) {
-            if (richtig) {
-                state.richtigGelesen++;
-                addSand(); 
-            }
+        // --- GAME LOGIC ---
+        function startGame() {
+            saveSettings();
+            state.game = { 
+                runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: true, finished: false, letterStats: {}
+            };
+            state.view = { zoom: 1, targetZoom: 1 };
+            state.settings.buchstaben.forEach(b => state.game.letterStats[b] = 0);
             
-            if (state.aktuelleRunde >= state.woerterProRunde - 1) {
-                state.spielBeendet = true;
-                wordCard.classList.add('hidden'); 
-                fortschrittAnzeige.classList.add('hidden'); 
-                losButtonContainer.classList.remove('hidden'); 
+            dom.views.start.classList.add('hidden');
+            dom.views.ende.classList.add('hidden');
+            dom.views.spiel.classList.remove('hidden');
+            dom.misc.losContainer.classList.add('hidden');
+            dom.card.swipe.classList.remove('hidden');
+            
+            startPhysics();
+            nextCard(true);
+        }
+
+        function showStart() {
+            state.game.active = false;
+            stopPhysics();
+            dom.views.spiel.classList.add('hidden');
+            dom.views.ende.classList.add('hidden');
+            dom.views.start.classList.remove('hidden');
+            dom.views.start.classList.add('flex');
+            dom.card.content.style.backgroundColor = 'white';
+        }
+
+        function nextCard(first = false) {
+            if (state.game.runde >= state.settings.woerter) {
+                prepareEndPhase();
                 return;
             }
 
-            state.aktuelleRunde++;
-            naechstesWort();
-        }
+            dom.stats.curr.textContent = state.game.runde + 1;
+            dom.stats.max.textContent = state.settings.woerter;
 
-        function naechstesWort() {
-            aktuellesWortNr.textContent = state.aktuelleRunde + 1;
-            maxWoerterNr.textContent = state.woerterProRunde;
-
-            let wortSilben;
+            let wort = selectWordPriority();
             let versuche = 0;
-            do {
-                wortSilben = generiereWort();
+            while (state.game.history.has(wort.join('')) && versuche < 20) {
+                wort = selectWordPriority();
                 versuche++;
-            } while (state.generierteWoerterRunde.has(wortSilben.join('')) && versuche < 50);
+            }
+            state.game.history.add(wort.join(''));
             
-            state.generierteWoerterRunde.add(wortSilben.join(''));
-            displayWort(wortSilben);
+            const fullString = wort.join('').toUpperCase();
+            state.settings.buchstaben.forEach(token => {
+                if (fullString.includes(token.toUpperCase())) {
+                    state.game.letterStats[token] = (state.game.letterStats[token] || 0) + 1;
+                }
+            });
+
+            dom.card.text.innerHTML = '';
+            wort.forEach((silbe, i) => {
+                const span = document.createElement('span');
+                let text = silbe.toLowerCase();
+                if (i === 0 && Math.random() < 0.8) text = text.charAt(0).toUpperCase() + text.slice(1);
+                span.textContent = text;
+                if (state.settings.farben) span.className = i % 2 === 0 ? 'text-blue-600' : 'text-red-600';
+                if (state.settings.abstand && i < wort.length - 1) span.style.marginRight = '0.2em';
+                dom.card.text.appendChild(span);
+            });
+
+            adjustFontSize();
+
+            const card = dom.card.swipe;
+            card.style.transition = 'none';
+            card.style.transform = 'translate(0,0) rotate(0) scale(0.8)';
+            card.style.opacity = '0';
+            dom.card.overlay.style.opacity = '0';
+            dom.card.content.style.backgroundColor = 'white';
+            
+            requestAnimationFrame(() => {
+                card.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                card.style.transform = 'translate(0,0) rotate(0) scale(1)';
+                card.style.opacity = '1';
+                
+                // Start Time
+                state.game.wordStartTime = Date.now();
+            });
         }
 
-        function displayWort(silbenArray) {
-            wortContainer.innerHTML = '';
-            silbenArray.forEach((silbe, index) => {
-                const span = document.createElement('span');
-                span.textContent = silbe.toLowerCase();
-                if (index === 0 && span.textContent.length > 0 && Math.random() < 0.8) {
-                    span.textContent = span.textContent.charAt(0).toUpperCase() + span.textContent.slice(1);
-                }
-                if (state.silbenFaerben) {
-                    span.classList.add(index % 2 === 0 ? 'text-blue-600' : 'text-red-600');
-                }
-                if (state.silbenAbstand && index < silbenArray.length - 1) {
-                    span.style.marginRight = '0.2em';
-                }
-                wortContainer.appendChild(span);
+        // --- SMART WORD SELECTION ---
+        function selectWordPriority() {
+            const allowedCharsFlat = new Set();
+            state.settings.buchstaben.forEach(token => {
+                token.toUpperCase().split('').forEach(char => allowedCharsFlat.add(char));
             });
-            adjustFontSize();
-        }
-        
-        function adjustFontSize() {
-            const container = document.getElementById('wort-anzeige-container');
-            const span = document.getElementById('wort-anzeige');
-            if (!container || !span) return;
-            
-            let aktuelleGroesse = 4; 
-            span.style.fontSize = `${aktuelleGroesse}rem`;
-            
-            const checkOverflow = () => {
-                return span.scrollWidth > container.clientWidth || span.scrollHeight > container.clientHeight;
+
+            const realCandidates = WOERTERBUCH.filter(silben => {
+                if(silben.length < state.settings.minSilben || silben.length > state.settings.maxSilben) return false;
+                const fullWord = silben.join('').toUpperCase();
+                for(const char of fullWord) {
+                    if(!allowedCharsFlat.has(char)) return false;
+                }
+                return true;
+            });
+
+            const scoreWord = (silbenArray) => {
+                const wordStr = silbenArray.join('').toUpperCase();
+                let score = 0;
+                state.settings.buchstaben.forEach(token => {
+                    if(wordStr.includes(token.toUpperCase())) {
+                        const count = state.game.letterStats[token] || 0;
+                        score += (count === 0 ? 100 : 1 / (count + 1));
+                    }
+                });
+                return score;
             };
 
-            while (checkOverflow() && aktuelleGroesse > 1) {
-                aktuelleGroesse -= 0.2;
-                span.style.fontSize = `${aktuelleGroesse}rem`;
+            if (realCandidates.length > 0) {
+                const unusedReal = realCandidates.filter(w => !state.game.history.has(w.join('')));
+                const pool = unusedReal.length > 0 ? unusedReal : realCandidates;
+                pool.sort((a, b) => scoreWord(b) - scoreWord(a));
+                const topK = Math.min(pool.length, 3);
+                return pool[Math.floor(Math.random() * topK)];
             }
+
+            const targetLen = determineTargetLength();
+            return generateBalancedFantasyWord(targetLen);
         }
 
-        // --- Wort Generator ---
-        function updateStateFromUI() {
-            state.gelernteBuchstaben = [];
-            buchstabenContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-                state.gelernteBuchstaben.push(cb.value);
-            });
-            state.vokale = state.gelernteBuchstaben.filter(b => VOKALE_LISTE.includes(b));
-            state.diphthonge = state.gelernteBuchstaben.filter(b => DIPHTHONGE_LISTE.includes(b));
-            state.konsonanten = state.gelernteBuchstaben.filter(b => !VOKALE_LISTE.includes(b) && !DIPHTHONGE_LISTE.includes(b));
-            state.minSilben = parseInt(minSilbenInput.value) || 1;
-            state.maxSilben = parseInt(maxSilbenInput.value) || 3;
-            if (state.minSilben > state.maxSilben) { state.minSilben = state.maxSilben; minSilbenInput.value = state.minSilben; }
-            state.woerterProRunde = parseInt(woerterProRundeInput.value) || 10;
-            state.silbenFaerben = silbenFaerbenCheckbox.checked;
-            state.silbenAbstand = silbenAbstandCheckbox.checked;
+        // 75% Wahrscheinlichkeit für maximale Silbenlänge (wenn möglich)
+        function determineTargetLength() {
+            const min = state.settings.minSilben;
+            const max = state.settings.maxSilben;
+            if (min === max) return max;
+            return Math.random() < 0.75 ? max : Math.floor(Math.random() * (max - 1 - min + 1)) + min;
         }
 
-        function generiereWort() {
-            const min = state.minSilben;
-            const max = state.maxSilben;
-            const silbenAnzahl = Math.floor(Math.random() * (max - min + 1)) + min;
-            const silben = [];
-            let letzteSilbeWarEinzelVokal = false;
-            let letzterBuchstabe = ''; 
+        function generateBalancedFantasyWord(length) {
+            const res = [];
+            const v = state.settings.buchstaben.filter(b => VOKALE_LISTE.includes(b));
+            const k = state.settings.buchstaben.filter(b => !VOKALE_LISTE.includes(b) && !DIPHTHONGE_LISTE.includes(b));
+            const d = state.settings.buchstaben.filter(b => DIPHTHONGE_LISTE.includes(b));
+            
+            if (v.length === 0 && d.length === 0) return ["A".repeat(length).split('')]; 
 
-            if (state.gelernteBuchstaben.length === 0) return ["Bitte", "Buchstaben", "wählen"];
-
-            for (let i = 0; i < silbenAnzahl; i++) {
-                const forceTwoPlus = (state.minSilben === 1 && state.maxSilben === 1 && (state.konsonanten.length > 0 || state.diphthonge.length > 0));
-                let silbe; 
-                let versuche = 0; 
-                do {
-                    silbe = generiereSilbe(letzteSilbeWarEinzelVokal, forceTwoPlus);
-                    versuche++;
-                } while (silbe && silbe.length > 0 && silbe.charAt(0) === letzterBuchstabe && versuche < 20);
+            const pickWeighted = (pool, exclude) => {
+                if (pool.length === 0) return '';
+                let candidates = pool;
+                if (exclude && pool.length > 1) candidates = pool.filter(c => c !== exclude);
                 
-                if (silbe) {
-                    silben.push(silbe);
-                    letzteSilbeWarEinzelVokal = (silbe.length === 1 && state.vokale.includes(silbe));
-                    letzterBuchstabe = silbe.slice(-1); 
-                }
+                let minUsage = Infinity;
+                candidates.forEach(char => {
+                    const u = state.game.letterStats[char] || 0;
+                    if (u < minUsage) minUsage = u;
+                });
+                const best = candidates.filter(char => (state.game.letterStats[char] || 0) === minUsage);
+                return best[Math.floor(Math.random() * best.length)];
+            };
+
+            let lastConsonant = '';
+            let lastVowel = '';
+
+            for(let i=0; i<length; i++) {
+                let s = '';
+                let attempts = 0;
+                let valid = false;
+
+                do {
+                    let type = 'KV';
+                    if(Math.random() < 0.1 && i === 0) type = 'V'; 
+                    if (i > 0 && VOKALE_LISTE.includes(res[i-1].slice(-1).toUpperCase())) type = 'KV';
+
+                    s = '';
+                    let curC = '', curV = '';
+
+                    if(type === 'KV' && k.length > 0) {
+                        curC = pickWeighted(k, lastConsonant);
+                        s += curC;
+                    }
+                    
+                    if(d.length > 0 && Math.random() < 0.2) {
+                        s += pickWeighted(d, lastVowel); // Treat diphthong like vowel for exclusion
+                    } else if(v.length > 0) {
+                        curV = pickWeighted(v, lastVowel);
+                        s += curV;
+                    }
+                    
+                    valid = true;
+                    if (length >= 3 && i > 0 && s === res[i-1]) valid = false;
+                    if (length >= 4 && i > 1 && s === res[i-2]) valid = false;
+                    if (i > 0 && res[i-1].slice(-1).toLowerCase() === s.charAt(0).toLowerCase()) valid = false;
+
+                    if (valid) {
+                        if (curC) lastConsonant = curC;
+                        if (curV) lastVowel = curV;
+                    }
+                    attempts++;
+                } while (!valid && attempts < 20);
+                res.push(s);
             }
-            return silben;
+            return res;
         }
 
-        function generiereSilbe(letzteSilbeWarEinzelVokal, forceTwoPlus) {
-            const hatVokale = state.vokale.length > 0;
-            const hatKonsonanten = state.konsonanten.length > 0;
-            const hatDiphthonge = state.diphthonge.length > 0;
-            if (!hatVokale && !hatDiphthonge) return hatKonsonanten ? state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] : null;
-
-            const gewichtung = 10; 
-            const moeglicheTypen = [];
-            if (hatVokale) moeglicheTypen.push('V'); 
-            if (hatDiphthonge) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('D');
-            if (hatKonsonanten && hatVokale) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('KV');
-            if (hatKonsonanten && hatDiphthonge) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('KD');
-
-            if (moeglicheTypen.length === 0) return null;
-
-            let gefilterteTypen = moeglicheTypen;
-            if (letzteSilbeWarEinzelVokal) gefilterteTypen = moeglicheTypen.filter(t => t === 'KV' || t === 'KD');
-            if (forceTwoPlus) {
-                const basisListe = (letzteSilbeWarEinzelVokal && gefilterteTypen.length > 0) ? gefilterteTypen : moeglicheTypen;
-                gefilterteTypen = basisListe.filter(t => t !== 'V');
+        function handleResult(success) {
+            if (success) {
+                state.game.richtig++;
+                const duration = Date.now() - state.game.wordStartTime;
+                let factor = 1.0;
+                if (duration < 2000) factor = 2.0; 
+                else if (duration > 5000) factor = 0.5;
+                spawnParticles(factor);
             }
-            if(letzteSilbeWarEinzelVokal) gefilterteTypen = gefilterteTypen.filter(t => t !== 'V');
-
-            if (gefilterteTypen.length === 0) {
-                gefilterteTypen = moeglicheTypen.filter(t => t !== 'V');
-                if (gefilterteTypen.length === 0) gefilterteTypen = moeglicheTypen; 
-            }
-
-            const silbenTyp = gefilterteTypen[Math.floor(Math.random() * gefilterteTypen.length)];
-            switch (silbenTyp) {
-                case 'V': return state.vokale[Math.floor(Math.random() * state.vokale.length)];
-                case 'D': return state.diphthonge[Math.floor(Math.random() * state.diphthonge.length)];
-                case 'KV': return state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] + state.vokale[Math.floor(Math.random() * state.vokale.length)];
-                case 'KD': return state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] + state.diphthonge[Math.floor(Math.random() * state.diphthonge.length)];
-                default: return null;
-            }
+            state.game.runde++;
+            setTimeout(() => nextCard(), 300);
         }
-        
-        function speichereEinstellungen() {
-            try {
-                const einstellungen = { buchstaben: state.gelernteBuchstaben, minSilben: state.minSilben, maxSilben: state.maxSilben, woerterProRunde: state.woerterProRunde, silbenFaerben: state.silbenFaerben, silbenAbstand: state.silbenAbstand };
-                localStorage.setItem('leseAppEinstellungen', JSON.stringify(einstellungen));
-            } catch (e) {}
-        }
-        
-        function ladeEinstellungen() {
-            try {
-                const gespeicherte = localStorage.getItem('leseAppEinstellungen');
-                if (gespeicherte) {
-                    const einstellungen = JSON.parse(gespeicherte);
-                    if (einstellungen.buchstaben) buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = einstellungen.buchstaben.includes(cb.value));
-                    minSilbenInput.value = einstellungen.minSilben || 2;
-                    maxSilbenInput.value = einstellungen.maxSilben || 3;
-                    woerterProRundeInput.value = einstellungen.woerterProRunde || 10;
-                    silbenFaerbenCheckbox.checked = einstellungen.silbenFaerben !== false;
-                    silbenAbstandCheckbox.checked = einstellungen.silbenAbstand === true;
+
+        // --- SWIPE ---
+        function initSwipeLogic() {
+            let startX = 0, isDragging = false;
+            const card = dom.card.swipe;
+            const content = dom.card.content;
+            
+            const start = (x) => {
+                if (state.game.finished) return;
+                startX = x;
+                isDragging = true;
+                card.style.transition = 'none';
+            };
+            
+            const move = (x) => {
+                if (!isDragging) return;
+                const diff = x - startX;
+                card.style.transform = `translate(${diff}px, 0) rotate(${diff * 0.05}deg)`;
+                
+                const opacity = Math.min(Math.abs(diff) / 150, 0.3);
+                if (diff > 0) {
+                    content.style.backgroundColor = `rgba(34, 197, 94, ${0.1 + opacity * 0.5})`; // Grünlich
+                    dom.card.overlay.innerHTML = `<svg class="w-32 h-32 text-green-600 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>`;
                 } else {
-                    const standardBuchstaben = ['A', 'M', 'O', 'L', 'I'];
-                    buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = standardBuchstaben.includes(cb.value));
+                    content.style.backgroundColor = `rgba(107, 114, 128, ${0.1 + opacity * 0.5})`;
+                    dom.card.overlay.innerHTML = `<svg class="w-32 h-32 text-gray-600 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M6 18L18 6M6 6l12 12"></path></svg>`;
                 }
-            } catch (e) {
-                const standardBuchstaben = ['A', 'M', 'O', 'L', 'I'];
-                buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = standardBuchstaben.includes(cb.value));
+                dom.card.overlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
+            };
+            
+            const end = (x) => {
+                if (!isDragging) return;
+                isDragging = false;
+                const diff = x - startX;
+                
+                if (Math.abs(diff) > 100) {
+                    const dir = diff > 0 ? 1 : -1;
+                    card.style.transition = 'transform 0.2s ease-out';
+                    card.style.transform = `translate(${dir * 500}px, 0) rotate(${dir * 45}deg)`;
+                    handleResult(dir === 1);
+                } else {
+                    card.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    card.style.transform = 'translate(0,0) rotate(0)';
+                    content.style.backgroundColor = 'white';
+                    dom.card.overlay.style.opacity = '0';
+                }
+            };
+
+            card.addEventListener('touchstart', e => start(e.touches[0].clientX));
+            window.addEventListener('touchmove', e => move(e.touches[0].clientX));
+            window.addEventListener('touchend', e => end(e.changedTouches[0].clientX));
+            card.addEventListener('mousedown', e => start(e.clientX));
+            window.addEventListener('mousemove', e => move(e.clientX));
+            window.addEventListener('mouseup', e => end(e.clientX));
+        }
+
+        // --- PHYSICS ---
+        function startPhysics() {
+            stopPhysics();
+            const container = document.getElementById('2d-canvas-container');
+            engine = Matter.Engine.create({ enableSleeping: true });
+            world = engine.world;
+            
+            render = Matter.Render.create({
+                element: container,
+                engine: engine,
+                options: { width: container.clientWidth, height: container.clientHeight, wireframes: false, background: 'transparent' }
+            });
+            
+            createWalls(container.clientWidth, container.clientHeight);
+            
+            (function loop() {
+                if (!engine) return;
+                window.requestAnimationFrame(loop);
+                
+                // Update Physics
+                Matter.Engine.update(engine, 1000/60);
+                
+                // Custom Render mit Zoom
+                const ctx = render.context;
+                const w = render.canvas.width;
+                const h = render.canvas.height;
+
+                ctx.clearRect(0, 0, w, h);
+                
+                ctx.save();
+                // Zoom Logic: Center at (width/2, height/2)
+                // Zoom interpolation
+                state.view.zoom += (state.view.targetZoom - state.view.zoom) * 0.05;
+                
+                ctx.translate(w/2, h/2);
+                ctx.scale(state.view.zoom, state.view.zoom);
+                ctx.translate(-w/2, -h/2);
+
+                Matter.Composite.allBodies(world).forEach(b => {
+                    if (b.label === 'wall' || b.label === 'stirrer') return;
+                    ctx.beginPath();
+                    ctx.arc(b.position.x, b.position.y, b.circleRadius, 0, 2*Math.PI);
+                    ctx.fillStyle = b.render.fillStyle;
+                    ctx.fill();
+                });
+                ctx.restore();
+            })();
+            physicsActive = true;
+        }
+
+        function stopPhysics() {
+            engine = null; render = null; stirrer = null; physicsActive = false;
+            document.getElementById('2d-canvas-container').innerHTML = '';
+        }
+
+        function resizePhysics() {
+            if(!render) return;
+            const container = document.getElementById('2d-canvas-container');
+            render.canvas.width = container.clientWidth;
+            render.canvas.height = container.clientHeight;
+            createWalls(container.clientWidth, container.clientHeight);
+        }
+
+        function createWalls(w, h) {
+            if(!world) return;
+            Matter.Composite.clear(world, false, true); 
+            const oldWalls = Matter.Composite.allBodies(world).filter(b => b.label === 'wall');
+            Matter.Composite.remove(world, oldWalls);
+            const th = 200;
+            const wallOpts = { isStatic: true, label: 'wall', friction: 1, restitution: 0 };
+            Matter.Composite.add(world, [
+                Matter.Bodies.rectangle(w/2, h + th/2, w + 200, th, wallOpts), 
+                Matter.Bodies.rectangle(-th/2, h/2, th, h*2, wallOpts), 
+                Matter.Bodies.rectangle(w + th/2, h/2, th, h*2, wallOpts) 
+            ]);
+        }
+
+        function spawnParticles(factor = 1.0) {
+            if(!engine) return;
+            const w = render.canvas.width;
+            const h = render.canvas.height;
+            
+            // --- KORREKTUR: Dynamische Größe & Anzahl für Füllung ---
+            let baseRadius = Math.min(Math.max(w * 0.015, 5), 15); 
+
+            // Anzahl
+            const baseCount = 30; 
+            let count = Math.floor(baseCount * factor);
+            if (count > 100) count = 100; 
+            if (count < 10) count = 10;
+
+            const color = RAINBOW_COLORS[state.game.colorIndex];
+            state.game.colorIndex = (state.game.colorIndex + 1) % RAINBOW_COLORS.length;
+
+            for(let i=0; i<count; i++) {
+                // Varianz in der Größe: +/- 40%
+                const r = baseRadius * (0.6 + Math.random() * 0.8);
+
+                const x = Math.random() * w * 0.8 + w * 0.1;
+                const y = -Math.random() * 300 - 50;
+                const body = Matter.Bodies.circle(x, y, r, {
+                    restitution: 0.1, friction: 0.5, frictionAir: 0.05, density: 0.04,
+                    render: { fillStyle: color }
+                });
+                Matter.Composite.add(world, body);
             }
+        }
+
+        // --- MISC ---
+        function adjustFontSize() {
+            const el = dom.card.text;
+            const parent = dom.card.textContainer;
+            let size = 4;
+            el.style.fontSize = `${size}rem`;
+            while ((el.scrollWidth > parent.clientWidth || el.scrollHeight > parent.clientHeight) && size > 1) {
+                size -= 0.2;
+                el.style.fontSize = `${size}rem`;
+            }
+        }
+
+        function moveStirrer(e) {
+            if (!state.game.finished || dom.misc.losContainer.classList.contains('hidden')) return;
+            if(e.type === 'touchmove') e.preventDefault();
+            
+            let x, y;
+            if (e.type.startsWith('touch')) {
+                 x = e.touches[0].clientX;
+                 y = e.touches[0].clientY;
+            } else {
+                 x = e.clientX;
+                 y = e.clientY;
+            }
+            
+            if (!stirrer && engine) {
+                stirrer = Matter.Bodies.circle(x, y, 80, { isStatic: true, label: 'stirrer' });
+                Matter.Composite.add(engine.world, stirrer);
+            } else if (stirrer) {
+                Matter.Body.setPosition(stirrer, {x, y});
+            }
+        }
+
+        function prepareEndPhase() {
+            state.game.finished = true;
+            dom.card.swipe.classList.add('hidden');
+            dom.misc.losContainer.classList.remove('hidden');
+            if(world) {
+                Matter.Composite.allBodies(world).forEach(b => {
+                    Matter.Sleeping.set(b, false);
+                    b.sleepThreshold = -1; 
+                });
+            }
+        }
+
+        function triggerExplosion() {
+            dom.misc.losContainer.classList.add('hidden');
+            if(stirrer) { Matter.Composite.remove(engine.world, stirrer); stirrer = null; }
+            
+            // 1. Wände weg
+            const walls = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'wall');
+            Matter.Composite.remove(engine.world, walls);
+
+            // 2. Zoom Out
+            state.view.targetZoom = 0.4;
+
+            // 3. Massive Kraft mit hoher Varianz
+            Matter.Composite.allBodies(engine.world).forEach(b => {
+                if(!b.isStatic) {
+                    Matter.Sleeping.set(b, false);
+                    const dirX = (Math.random() - 0.5) * 3.0; 
+                    // Kraft abhängig von Masse (0.05 * mass = Grundbeschleunigung) * Faktor
+                    // Hier: 5x bis 15x so stark wie normal
+                    const forceMagnitude = 0.05 * b.mass * (5 + Math.random() * 10.0); 
+
+                    Matter.Body.applyForce(b, b.position, { 
+                        x: dirX * forceMagnitude * 0.1, 
+                        y: -1 * forceMagnitude 
+                    });
+                    
+                    Matter.Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.5);
+                }
+            });
+            setTimeout(showEnd, 4000); 
+        }
+
+        function showEnd() {
+            state.game.active = false;
+            stopPhysics();
+            dom.views.spiel.classList.add('hidden');
+            dom.views.ende.classList.remove('hidden');
+            dom.views.ende.classList.add('flex');
+            
+            dom.stats.resRight.textContent = state.game.richtig;
+            dom.stats.resMax.textContent = state.settings.woerter;
+            
+            const pct = state.game.richtig / state.settings.woerter;
+            let stars = 1; if(pct > 0.4) stars = 2; if(pct > 0.6) stars = 3; if(pct > 0.8) stars = 4; if(pct > 0.95) stars = 5;
+            dom.stats.stars.innerHTML = Array(5).fill(0).map((_, i) => `<span class="${i < stars ? 'text-yellow-400' : 'text-gray-200'}">★</span>`).join('');
+        }
+
+        function saveSettings() {
+            const checked = dom.inputs.container.querySelectorAll('input:checked');
+            const d = {
+                buchstaben: Array.from(checked).map(c => c.value),
+                minSilben: parseInt(dom.inputs.min.value), 
+                maxSilben: parseInt(dom.inputs.max.value), 
+                woerter: parseInt(dom.inputs.woerter.value),
+                farben: dom.inputs.color.checked, 
+                abstand: dom.inputs.gap.checked
+            };
+            if (d.minSilben > d.maxSilben) d.minSilben = d.maxSilben;
+            state.settings = d;
+            try {
+                localStorage.setItem('leseAppConf', JSON.stringify(d));
+            } catch(e) {}
+        }
+
+        function ladeEinstellungen() {
+            let d = { buchstaben: ['A','M','O','L','I'], minSilben: 1, maxSilben: 2, woerter: 10, farben: true, abstand: false };
+            try { 
+                const s = localStorage.getItem('leseAppConf'); 
+                if(s) {
+                    const parsed = JSON.parse(s);
+                    d = {...d, ...parsed};
+                    if (!Array.isArray(d.buchstaben)) d.buchstaben = ['A','M','O','L','I'];
+                }
+            } catch(e){
+                localStorage.removeItem('leseAppConf');
+            }
+            state.settings = d;
+            dom.inputs.min.value = d.minSilben; dom.inputs.max.value = d.maxSilben; dom.inputs.woerter.value = d.woerter;
+            dom.inputs.color.checked = d.farben; dom.inputs.gap.checked = d.abstand;
+            
+            dom.inputs.container.querySelectorAll('input').forEach(cb => {
+                cb.checked = d.buchstaben.includes(cb.value);
+            });
         }
     </script>
 </body>
