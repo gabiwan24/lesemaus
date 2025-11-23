@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lese-Lern-App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Matter.js (2D Physik Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <!-- Google Font: Playwrite DE Grund -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playwrite+DE+Grund:wght@100..400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Playwrite DE Grund', cursive;
+            overscroll-behavior: none;
+            user-select: none;
+            touch-action: none; /* Wichtig für Touch-Events auf dem ganzen Screen */
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        #swipe-feedback-bg {
+            transition: background-color 0.1s linear;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 w-screen h-screen overflow-hidden flex flex-col">
+
+    <!-- Hintergrund für Swipe-Feedback -->
+    <div id="swipe-feedback-bg" class="absolute inset-0 z-0 bg-transparent"></div>
+
+    <!-- Hauptcontainer -->
+    <div id="app" class="relative w-full h-full flex flex-col z-10">
+
+        <!-- 1. Startbildschirm (Einstellungen) -->
+        <div id="startbildschirm" class="flex flex-col h-full p-4 md:p-8 bg-white z-50 relative">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600 mb-6">Lese-Training</h1>
+
+            <div class="flex-grow overflow-y-auto pb-24">
+                <!-- Gelernte Buchstaben -->
+                <fieldset class="mb-6">
+                    <legend class="text-base font-semibold mb-3">Gelernte Buchstaben:</legend>
+                    <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                        <!-- Checkboxen werden per JS eingefügt -->
+                    </div>
+                </fieldset>
+
+                <!-- Einstellungen -->
+                <fieldset class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    <legend class="text-base font-semibold mb-3 col-span-1 md:col-span-2">Einstellungen:</legend>
+
+                    <div class="grid grid-cols-3 gap-x-4 gap-y-2 col-span-1 md:col-span-2">
+                        <div>
+                            <label for="min-silben" class="block text-sm font-medium text-gray-700">Min. Silben</label>
+                            <input type="number" id="min-silben" value="2" min="1" max="5" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                        </div>
+                        <div>
+                            <label for="max-silben" class="block text-sm font-medium text-gray-700">Max. Silben</label>
+                            <input type="number" id="max-silben" value="3" min="1" max="5" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                        </div>
+                        <div>
+                            <label for="woerter-pro-runde" class="block text-sm font-medium text-gray-700">Wörter</label>
+                            <input type="number" id="woerter-pro-runde" value="10" min="1" max="50" class="mt-1 w-full text-center border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 col-span-1 md:col-span-2 mt-4">
+                        <div class="relative flex items-start">
+                            <div class="flex h-6 items-center">
+                                <input id="silben-faerben" type="checkbox" checked class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            </div>
+                            <div class="ml-3 text-base leading-6">
+                                <label for="silben-faerben" class="font-medium">Silben abwechselnd einfärben (blau/rot)</label>
+                            </div>
+                        </div>
+                        <div class="relative flex items-start">
+                            <div class="flex h-6 items-center">
+                                <input id="silben-abstand" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            </div>
+                            <div class="ml-3 text-base leading-6">
+                                <label for="silben-abstand" class="font-medium">Silbenabstand anzeigen</label>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-4 px-6 rounded-lg shadow-md transition-transform duration-150 ease-in-out active:scale-95">
+                    Start!
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Spielbildschirm -->
+        <div id="spiel" class="hidden w-full h-full relative overflow-hidden">
+            
+            <!-- Burger-Menü -->
+            <div class="absolute top-4 right-4 z-50">
+                <button id="einstellungen-button" class="text-gray-400 hover:text-blue-600 bg-white/80 rounded-full p-2 shadow-sm">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+
+            <!-- Fortschritt -->
+            <div id="fortschritt-anzeige" class="w-full text-center text-gray-500 text-sm absolute top-6 left-0 z-40 pointer-events-none font-bold">
+                Wort <span id="aktuelles-wort-nr">1</span> / <span id="max-woerter-nr">10</span>
+            </div>
+
+            <!-- 2D Canvas Container (Hintergrund) -->
+            <div id="2d-canvas-container" class="absolute inset-0 z-0 bg-white">
+                <!-- Canvas wird hier per JS eingefügt -->
+            </div>
+
+            <!-- Karten-Ebene (Vordergrund) -->
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+                
+                <!-- Die Swipe-Karte -->
+                <div id="word-card" class="pointer-events-auto bg-white rounded-3xl shadow-2xl border border-gray-100 w-11/12 max-w-md aspect-[3/2] flex items-center justify-center cursor-grab active:cursor-grabbing touch-none transform transition-transform will-change-transform relative">
+                    
+                    <div id="wort-anzeige-container" class="w-full h-full flex items-center justify-center overflow-hidden p-6 relative z-10">
+                        <span id="wort-anzeige" class="font-bold whitespace-nowrap select-none pointer-events-none text-gray-800" style="font-size: 4rem;">Laden...</span>
+                    </div>
+
+                    <div id="card-overlay" class="absolute inset-0 rounded-3xl pointer-events-none opacity-0 transition-opacity duration-200 flex items-center justify-center z-0">
+                        <!-- Inhalt wird per JS gesetzt -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- "Los" Button für Konfetti-Interaktion -->
+            <div id="los-button-container" class="hidden absolute bottom-12 left-0 right-0 flex justify-center z-50 pointer-events-auto">
+                <button id="los-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-4 px-12 rounded-full shadow-xl transition-transform duration-150 ease-in-out active:scale-95 animate-bounce">
+                    Los!
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Auswertungsbildschirm -->
+        <div id="auswertung" class="hidden flex-col h-full justify-center items-center text-center p-4 bg-white z-50 absolute inset-0">
+            <h2 class="text-4xl font-bold text-blue-600 mb-8">Super!</h2>
+            <div id="sterne-anzeige" class="text-5xl text-yellow-400 mb-12"></div>
+            <p id="auswertung-text" class="text-xl mb-12">Du hast <span id="richtige-woerter-anzahl">0</span> von <span id="max-woerter-anzahl">10</span> Wörtern richtig gelesen.</p>
+            <button id="zurueck-button" class="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-4 px-6 rounded-lg shadow-md transition-transform duration-150 ease-in-out active:scale-95">Nochmal!</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Globale Elemente ---
+        const startbildschirm = document.getElementById('startbildschirm');
+        const spiel = document.getElementById('spiel');
+        const auswertung = document.getElementById('auswertung');
+        const startButton = document.getElementById('start-button');
+        const buchstabenContainer = document.getElementById('buchstaben-container');
+        const minSilbenInput = document.getElementById('min-silben');
+        const maxSilbenInput = document.getElementById('max-silben');
+        const woerterProRundeInput = document.getElementById('woerter-pro-runde');
+        const silbenFaerbenCheckbox = document.getElementById('silben-faerben');
+        const silbenAbstandCheckbox = document.getElementById('silben-abstand');
+        const wordCard = document.getElementById('word-card');
+        const wortContainer = document.getElementById('wort-anzeige');
+        const cardOverlay = document.getElementById('card-overlay');
+        const bgFeedback = document.getElementById('swipe-feedback-bg');
+        const einstellungenButton = document.getElementById('einstellungen-button');
+        const fortschrittAnzeige = document.getElementById('fortschritt-anzeige');
+        const aktuellesWortNr = document.getElementById('aktuelles-wort-nr');
+        const maxWoerterNr = document.getElementById('max-woerter-nr');
+        const sterneAnzeige = document.getElementById('sterne-anzeige');
+        const richtigeWoerterAnzahl = document.getElementById('richtige-woerter-anzahl');
+        const maxWoerterAnzahl = document.getElementById('max-woerter-anzahl');
+        const zurueckButton = document.getElementById('zurueck-button');
+        const losButtonContainer = document.getElementById('los-button-container'); 
+        const losButton = document.getElementById('los-button'); 
+
+        // --- 2D Physik Variablen (Matter.js) ---
+        let engine, render, runner, world;
+        let animationFrameId = null;
+        let stirrerBody = null;
+        
+        // --- App-Zustand ---
+        const state = {
+            vokale: [], konsonanten: [], diphthonge: [], gelernteBuchstaben: [],
+            minSilben: 2, maxSilben: 3, woerterProRunde: 10,
+            silbenFaerben: true, silbenAbstand: false,
+            aktuelleRunde: 0, richtigGelesen: 0, generierteWoerterRunde: new Set(),
+            spielBeendet: false 
+        };
+
+        const ALLE_BUCHSTABEN = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü', 'Ei', 'Ai', 'Eu', 'Au', 'B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Y', 'Z', 'Ch', 'Sch', 'Ck'];
+        const VOKALE_LISTE = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü'];
+        const DIPHTHONGE_LISTE = ['Ei', 'Ai', 'Eu', 'Au'];
+        // NEU: Regenbogen Farben
+        const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initBuchstaben();
+            ladeEinstellungen();
+            initSwipe();
+            
+            startButton.addEventListener('click', zeigeSpiel);
+            einstellungenButton.addEventListener('click', zeigeStartbildschirm);
+            zurueckButton.addEventListener('click', zeigeStartbildschirm);
+            losButton.addEventListener('click', starteExplosionUndAuswertung); 
+            window.addEventListener('resize', handleResize);
+            
+            // Stirrer Events (Maus/Touch)
+            document.addEventListener('mousemove', updateStirrer);
+            document.addEventListener('touchmove', updateStirrer, { passive: false });
+        });
+
+        function handleResize() {
+            adjustFontSize();
+            if (render) {
+                const container = document.getElementById('2d-canvas-container');
+                render.canvas.width = container.clientWidth;
+                render.canvas.height = container.clientHeight;
+                updateWalls(container.clientWidth, container.clientHeight);
+            }
+        }
+
+        // --- Matter.js Physik ---
+        function stopPhysics() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            if (engine) {
+                Matter.World.clear(engine.world);
+                Matter.Engine.clear(engine);
+                engine = null;
+            }
+            if (render) {
+                render.canvas.remove();
+                render = null;
+            }
+            world = null;
+            stirrerBody = null;
+        }
+
+        function initPhysics() {
+            const container = document.getElementById('2d-canvas-container');
+            if (!container) return;
+            
+            stopPhysics(); 
+
+            engine = Matter.Engine.create({
+                positionIterations: 2, // Weniger Iterationen für Performance
+                velocityIterations: 2,
+                enableSleeping: true // Schlafmodus aktivieren!
+            });
+            world = engine.world;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            container.innerHTML = '';
+            container.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+
+            render = {
+                canvas: canvas,
+                context: ctx,
+                options: { width: canvas.width, height: canvas.height }
+            };
+
+            updateWalls(canvas.width, canvas.height);
+
+            // Game Loop
+            (function loop() {
+                if (!engine) return; 
+                animationFrameId = window.requestAnimationFrame(loop);
+                Matter.Engine.update(engine, 1000 / 60);
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const bodies = Matter.Composite.allBodies(world);
+                bodies.forEach(body => {
+                    if (body.label === 'wall' || body.label === 'stirrer') return;
+                    
+                    ctx.beginPath();
+                    const r = body.circleRadius;
+                    ctx.arc(body.position.x, body.position.y, r, 0, 2 * Math.PI);
+                    ctx.fillStyle = body.render.fillStyle;
+                    ctx.fill();
+                });
+            })();
+        }
+
+        function updateWalls(w, h) {
+            if (!world) return;
+            
+            const walls = Matter.Composite.allBodies(world).filter(b => b.label === 'wall');
+            Matter.Composite.remove(world, walls);
+
+            const thickness = 200; 
+            // Friction auf 1.0 für Wände, damit nichts rutscht
+            const wallOptions = { isStatic: true, label: 'wall', friction: 1.0, frictionStatic: 1.0 };
+            
+            const ground = Matter.Bodies.rectangle(w / 2, h + thickness / 2, w + 200, thickness, wallOptions);
+            const leftWall = Matter.Bodies.rectangle(0 - thickness/2, h/2 - h, thickness, h * 4, wallOptions);
+            const rightWall = Matter.Bodies.rectangle(w + thickness/2, h/2 - h, thickness, h * 4, wallOptions);
+
+            Matter.Composite.add(world, [ground, leftWall, rightWall]);
+        }
+
+        function updateStirrer(e) {
+            if (!world || !state.spielBeendet || !losButtonContainer.classList.contains('hidden') === false) return;
+            if (losButtonContainer.classList.contains('hidden')) return; 
+
+            let x, y;
+            if (e.type.startsWith('touch')) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+            } else {
+                x = e.clientX;
+                y = e.clientY;
+            }
+
+            if (!stirrerBody) {
+                stirrerBody = Matter.Bodies.circle(x, y, 80, { // Größerer Radius (80)
+                    isStatic: true, 
+                    label: 'stirrer'
+                });
+                Matter.Composite.add(world, stirrerBody);
+            } else {
+                Matter.Body.setPosition(stirrerBody, { x, y });
+            }
+        }
+
+        function addSand() {
+            if (!world) return;
+            
+            const container = document.getElementById('2d-canvas-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            
+            // Radius erhöht auf 9px für weniger Objekte (Performance)
+            const radius = 9; 
+            
+            const particleArea = radius * radius * Math.PI;
+            const screenArea = w * h;
+            // ~50% Füllung anpeilen
+            const totalParticlesNeeded = (screenArea * 0.5) / particleArea;
+            
+            let count = Math.floor(totalParticlesNeeded / state.woerterProRunde);
+            if (count > 150) count = 150; 
+            if (count < 20) count = 20;
+
+            // NEU: Regenbogen-Farbe wählen
+            const color = RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)];
+
+            for (let i = 0; i < count; i++) {
+                const x = (w / 2) + (Math.random() - 0.5) * (w * 0.8); 
+                const y = -50 - Math.random() * 400; 
+                
+                const particle = Matter.Bodies.circle(x, y, radius, {
+                    restitution: 0.0, // KEIN Bounce
+                    friction: 1.0, // Maximale Reibung
+                    frictionStatic: 1.0, // Kein Rutschen
+                    frictionAir: 0.05, // Luftwiderstand bremst Fallen und Bewegung
+                    density: 0.05, 
+                    sleepThreshold: 15, // Schlafen schon bei geringer Inaktivität
+                    render: { fillStyle: color }
+                });
+                
+                Matter.Composite.add(world, particle);
+            }
+        }
+
+        function starteExplosionUndAuswertung() {
+             losButtonContainer.classList.add('hidden'); 
+             
+             if (stirrerBody) {
+                 Matter.Composite.remove(world, stirrerBody);
+                 stirrerBody = null;
+             }
+
+             explode(); 
+             setTimeout(zeigeAuswertung, 3500); 
+        }
+
+        function explode() {
+            if (!world) return;
+            const bodies = Matter.Composite.allBodies(world).filter(b => b.label !== 'wall' && b.label !== 'stirrer');
+            
+            bodies.forEach(body => {
+                const force = {
+                    x: (Math.random() - 0.5) * 0.2,
+                    y: -0.2 - Math.random() * 0.3 
+                };
+                Matter.Body.applyForce(body, body.position, force);
+            });
+        }
+
+        // --- SWIPE LOGIK ---
+        function initSwipe() {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            const threshold = 100; 
+
+            const startDrag = (e) => {
+                if (state.spielBeendet) return; 
+
+                if (e.type === 'touchstart') {
+                    startX = e.touches[0].clientX;
+                } else {
+                    startX = e.clientX;
+                }
+                isDragging = true;
+                wordCard.style.transition = 'none'; 
+            };
+
+            const moveDrag = (e) => {
+                if (!isDragging || state.spielBeendet) return;
+                
+                if (e.type === 'touchmove') {
+                    currentX = e.touches[0].clientX;
+                } else {
+                    currentX = e.clientX;
+                }
+
+                const diff = currentX - startX;
+                const rotation = diff * 0.05; 
+
+                wordCard.style.transform = `translateX(${diff}px) rotate(${rotation}deg)`;
+
+                if (diff > 0) {
+                    const opacity = Math.min(Math.abs(diff) / 200, 0.3);
+                    cardOverlay.style.backgroundColor = `rgba(34, 197, 94, ${opacity})`; 
+                    cardOverlay.innerHTML = '<svg class="w-32 h-32 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>';
+                    cardOverlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
+                } else {
+                    const opacity = Math.min(Math.abs(diff) / 200, 0.2);
+                    cardOverlay.style.backgroundColor = `rgba(156, 163, 175, ${opacity})`; 
+                    cardOverlay.innerHTML = '<svg class="w-32 h-32 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                    cardOverlay.style.opacity = Math.min(Math.abs(diff) / 100, 1);
+                }
+            };
+
+            const endDrag = () => {
+                if (!isDragging || state.spielBeendet) return;
+                isDragging = false;
+                
+                bgFeedback.style.backgroundColor = 'transparent'; 
+                cardOverlay.style.opacity = 0;
+
+                const diff = currentX - startX;
+
+                if (diff > threshold) {
+                    triggerSwipeAction('right');
+                } else if (diff < -threshold) {
+                    triggerSwipeAction('left');
+                } else {
+                    wordCard.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; 
+                    wordCard.style.transform = 'translateX(0) rotate(0)';
+                }
+                currentX = 0;
+                startX = 0;
+            };
+
+            wordCard.addEventListener('touchstart', startDrag);
+            wordCard.addEventListener('touchmove', moveDrag);
+            wordCard.addEventListener('touchend', endDrag);
+            wordCard.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', moveDrag);
+            window.addEventListener('mouseup', endDrag);
+        }
+
+        function triggerSwipeAction(direction) {
+            if (state.spielBeendet) return; 
+
+            const screenWidth = window.innerWidth;
+            const targetX = direction === 'right' ? screenWidth + 300 : -screenWidth - 300;
+            const rotation = direction === 'right' ? 20 : -20;
+
+            wordCard.style.transition = 'transform 0.4s ease-in';
+            wordCard.style.transform = `translateX(${targetX}px) rotate(${rotation}deg)`;
+
+            setTimeout(() => {
+                handleWort(direction === 'right');
+                
+                if (!state.spielBeendet) {
+                    // FIX: Karte explizit zurücksetzen vor der Animation
+                    wordCard.style.transition = 'none';
+                    wordCard.style.transform = 'translateX(0) rotate(0) scale(0.9)';
+                    wordCard.style.opacity = '0'; 
+                    
+                    requestAnimationFrame(() => {
+                        wordCard.classList.add('fade-in');
+                        setTimeout(() => {
+                            wordCard.classList.remove('fade-in');
+                            wordCard.style.opacity = '1';
+                            wordCard.style.transform = 'scale(1)';
+                            wordCard.style.transition = ''; 
+                        }, 500);
+                    });
+                }
+            }, 300);
+        }
+
+        // --- App Logic ---
+        function initBuchstaben() {
+            ALLE_BUCHSTABEN.forEach(b => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = `cb-${b}`;
+                input.value = b;
+                input.className = 'h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500';
+                const label = document.createElement('label');
+                label.htmlFor = `cb-${b}`;
+                label.textContent = b;
+                label.className = 'ml-2 text-base font-medium';
+                div.appendChild(input);
+                div.appendChild(label);
+                buchstabenContainer.appendChild(div);
+            });
+        }
+        
+        function zeigeStartbildschirm() {
+            stopPhysics(); 
+            
+            startbildschirm.classList.remove('hidden');
+            startbildschirm.classList.add('flex');
+            spiel.classList.add('hidden');
+            spiel.classList.remove('flex');
+            auswertung.classList.add('hidden');
+            auswertung.classList.remove('flex');
+            bgFeedback.style.backgroundColor = 'transparent';
+            state.spielBeendet = false; 
+            losButtonContainer.classList.add('hidden'); 
+        }
+
+        function zeigeSpiel() {
+            stopPhysics(); 
+
+            updateStateFromUI();
+            speichereEinstellungen();
+
+            state.aktuelleRunde = 0;
+            state.richtigGelesen = 0;
+            state.generierteWoerterRunde.clear();
+            state.spielBeendet = false; 
+            losButtonContainer.classList.add('hidden'); 
+            wordCard.classList.remove('hidden'); 
+            fortschrittAnzeige.classList.remove('hidden');
+
+            // FIX: Karte zurücksetzen beim Spielstart (sofort unsichtbar)
+            wordCard.style.transition = 'none';
+            wordCard.style.transform = 'translateX(0) rotate(0) scale(1)';
+            wordCard.style.opacity = '0'; // Zuerst unsichtbar
+            wordCard.classList.remove('fade-in');
+
+            startbildschirm.classList.add('hidden');
+            startbildschirm.classList.remove('flex');
+            spiel.classList.remove('hidden');
+            spiel.classList.add('flex');
+            auswertung.classList.add('hidden');
+            auswertung.classList.remove('flex');
+            
+            setTimeout(() => {
+                initPhysics(); 
+                naechstesWort();
+                
+                // Initiale Animation (erst jetzt einblenden)
+                wordCard.style.opacity = '0';
+                wordCard.style.transform = 'scale(0.9)';
+                requestAnimationFrame(() => {
+                    wordCard.classList.add('fade-in');
+                    setTimeout(() => wordCard.classList.remove('fade-in'), 500);
+                });
+            }, 50);
+        }
+        
+        function zeigeAuswertung() {
+            startbildschirm.classList.add('hidden');
+            spiel.classList.add('hidden');
+            spiel.classList.remove('flex');
+            auswertung.classList.remove('hidden');
+            auswertung.classList.add('flex');
+            
+            richtigeWoerterAnzahl.textContent = state.richtigGelesen;
+            maxWoerterAnzahl.textContent = state.woerterProRunde;
+
+            const prozentsatz = state.richtigGelesen / state.woerterProRunde;
+            let sterne = 0;
+            if (prozentsatz >= 0.95) sterne = 5;
+            else if (prozentsatz >= 0.8) sterne = 4;
+            else if (prozentsatz >= 0.6) sterne = 3;
+            else if (prozentsatz >= 0.4) sterne = 2;
+            else if (prozentsatz > 0) sterne = 1;
+
+            sterneAnzeige.innerHTML = '';
+            for(let i = 0; i < 5; i++) {
+                const span = document.createElement('span');
+                span.textContent = '★';
+                span.className = i < sterne ? 'text-yellow-400' : 'text-gray-300';
+                sterneAnzeige.appendChild(span);
+            }
+        }
+
+        function handleWort(richtig) {
+            if (richtig) {
+                state.richtigGelesen++;
+                addSand(); 
+            }
+            
+            if (state.aktuelleRunde >= state.woerterProRunde - 1) {
+                state.spielBeendet = true;
+                wordCard.classList.add('hidden'); 
+                fortschrittAnzeige.classList.add('hidden'); 
+                losButtonContainer.classList.remove('hidden'); 
+                return;
+            }
+
+            state.aktuelleRunde++;
+            naechstesWort();
+        }
+
+        function naechstesWort() {
+            aktuellesWortNr.textContent = state.aktuelleRunde + 1;
+            maxWoerterNr.textContent = state.woerterProRunde;
+
+            let wortSilben;
+            let versuche = 0;
+            do {
+                wortSilben = generiereWort();
+                versuche++;
+            } while (state.generierteWoerterRunde.has(wortSilben.join('')) && versuche < 50);
+            
+            state.generierteWoerterRunde.add(wortSilben.join(''));
+            displayWort(wortSilben);
+        }
+
+        function displayWort(silbenArray) {
+            wortContainer.innerHTML = '';
+            silbenArray.forEach((silbe, index) => {
+                const span = document.createElement('span');
+                span.textContent = silbe.toLowerCase();
+                if (index === 0 && span.textContent.length > 0 && Math.random() < 0.8) {
+                    span.textContent = span.textContent.charAt(0).toUpperCase() + span.textContent.slice(1);
+                }
+                if (state.silbenFaerben) {
+                    span.classList.add(index % 2 === 0 ? 'text-blue-600' : 'text-red-600');
+                }
+                if (state.silbenAbstand && index < silbenArray.length - 1) {
+                    span.style.marginRight = '0.2em';
+                }
+                wortContainer.appendChild(span);
+            });
+            adjustFontSize();
+        }
+        
+        function adjustFontSize() {
+            const container = document.getElementById('wort-anzeige-container');
+            const span = document.getElementById('wort-anzeige');
+            if (!container || !span) return;
+            
+            let aktuelleGroesse = 4; 
+            span.style.fontSize = `${aktuelleGroesse}rem`;
+            
+            const checkOverflow = () => {
+                return span.scrollWidth > container.clientWidth || span.scrollHeight > container.clientHeight;
+            };
+
+            while (checkOverflow() && aktuelleGroesse > 1) {
+                aktuelleGroesse -= 0.2;
+                span.style.fontSize = `${aktuelleGroesse}rem`;
+            }
+        }
+
+        // --- Wort Generator ---
+        function updateStateFromUI() {
+            state.gelernteBuchstaben = [];
+            buchstabenContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                state.gelernteBuchstaben.push(cb.value);
+            });
+            state.vokale = state.gelernteBuchstaben.filter(b => VOKALE_LISTE.includes(b));
+            state.diphthonge = state.gelernteBuchstaben.filter(b => DIPHTHONGE_LISTE.includes(b));
+            state.konsonanten = state.gelernteBuchstaben.filter(b => !VOKALE_LISTE.includes(b) && !DIPHTHONGE_LISTE.includes(b));
+            state.minSilben = parseInt(minSilbenInput.value) || 1;
+            state.maxSilben = parseInt(maxSilbenInput.value) || 3;
+            if (state.minSilben > state.maxSilben) { state.minSilben = state.maxSilben; minSilbenInput.value = state.minSilben; }
+            state.woerterProRunde = parseInt(woerterProRundeInput.value) || 10;
+            state.silbenFaerben = silbenFaerbenCheckbox.checked;
+            state.silbenAbstand = silbenAbstandCheckbox.checked;
+        }
+
+        function generiereWort() {
+            const min = state.minSilben;
+            const max = state.maxSilben;
+            const silbenAnzahl = Math.floor(Math.random() * (max - min + 1)) + min;
+            const silben = [];
+            let letzteSilbeWarEinzelVokal = false;
+            let letzterBuchstabe = ''; 
+
+            if (state.gelernteBuchstaben.length === 0) return ["Bitte", "Buchstaben", "wählen"];
+
+            for (let i = 0; i < silbenAnzahl; i++) {
+                const forceTwoPlus = (state.minSilben === 1 && state.maxSilben === 1 && (state.konsonanten.length > 0 || state.diphthonge.length > 0));
+                let silbe; 
+                let versuche = 0; 
+                do {
+                    silbe = generiereSilbe(letzteSilbeWarEinzelVokal, forceTwoPlus);
+                    versuche++;
+                } while (silbe && silbe.length > 0 && silbe.charAt(0) === letzterBuchstabe && versuche < 20);
+                
+                if (silbe) {
+                    silben.push(silbe);
+                    letzteSilbeWarEinzelVokal = (silbe.length === 1 && state.vokale.includes(silbe));
+                    letzterBuchstabe = silbe.slice(-1); 
+                }
+            }
+            return silben;
+        }
+
+        function generiereSilbe(letzteSilbeWarEinzelVokal, forceTwoPlus) {
+            const hatVokale = state.vokale.length > 0;
+            const hatKonsonanten = state.konsonanten.length > 0;
+            const hatDiphthonge = state.diphthonge.length > 0;
+            if (!hatVokale && !hatDiphthonge) return hatKonsonanten ? state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] : null;
+
+            const gewichtung = 10; 
+            const moeglicheTypen = [];
+            if (hatVokale) moeglicheTypen.push('V'); 
+            if (hatDiphthonge) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('D');
+            if (hatKonsonanten && hatVokale) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('KV');
+            if (hatKonsonanten && hatDiphthonge) for (let i = 0; i < gewichtung; i++) moeglicheTypen.push('KD');
+
+            if (moeglicheTypen.length === 0) return null;
+
+            let gefilterteTypen = moeglicheTypen;
+            if (letzteSilbeWarEinzelVokal) gefilterteTypen = moeglicheTypen.filter(t => t === 'KV' || t === 'KD');
+            if (forceTwoPlus) {
+                const basisListe = (letzteSilbeWarEinzelVokal && gefilterteTypen.length > 0) ? gefilterteTypen : moeglicheTypen;
+                gefilterteTypen = basisListe.filter(t => t !== 'V');
+            }
+            if(letzteSilbeWarEinzelVokal) gefilterteTypen = gefilterteTypen.filter(t => t !== 'V');
+
+            if (gefilterteTypen.length === 0) {
+                gefilterteTypen = moeglicheTypen.filter(t => t !== 'V');
+                if (gefilterteTypen.length === 0) gefilterteTypen = moeglicheTypen; 
+            }
+
+            const silbenTyp = gefilterteTypen[Math.floor(Math.random() * gefilterteTypen.length)];
+            switch (silbenTyp) {
+                case 'V': return state.vokale[Math.floor(Math.random() * state.vokale.length)];
+                case 'D': return state.diphthonge[Math.floor(Math.random() * state.diphthonge.length)];
+                case 'KV': return state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] + state.vokale[Math.floor(Math.random() * state.vokale.length)];
+                case 'KD': return state.konsonanten[Math.floor(Math.random() * state.konsonanten.length)] + state.diphthonge[Math.floor(Math.random() * state.diphthonge.length)];
+                default: return null;
+            }
+        }
+        
+        function speichereEinstellungen() {
+            try {
+                const einstellungen = { buchstaben: state.gelernteBuchstaben, minSilben: state.minSilben, maxSilben: state.maxSilben, woerterProRunde: state.woerterProRunde, silbenFaerben: state.silbenFaerben, silbenAbstand: state.silbenAbstand };
+                localStorage.setItem('leseAppEinstellungen', JSON.stringify(einstellungen));
+            } catch (e) {}
+        }
+        
+        function ladeEinstellungen() {
+            try {
+                const gespeicherte = localStorage.getItem('leseAppEinstellungen');
+                if (gespeicherte) {
+                    const einstellungen = JSON.parse(gespeicherte);
+                    if (einstellungen.buchstaben) buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = einstellungen.buchstaben.includes(cb.value));
+                    minSilbenInput.value = einstellungen.minSilben || 2;
+                    maxSilbenInput.value = einstellungen.maxSilben || 3;
+                    woerterProRundeInput.value = einstellungen.woerterProRunde || 10;
+                    silbenFaerbenCheckbox.checked = einstellungen.silbenFaerben !== false;
+                    silbenAbstandCheckbox.checked = einstellungen.silbenAbstand === true;
+                } else {
+                    const standardBuchstaben = ['A', 'M', 'O', 'L', 'I'];
+                    buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = standardBuchstaben.includes(cb.value));
+                }
+            } catch (e) {
+                const standardBuchstaben = ['A', 'M', 'O', 'L', 'I'];
+                buchstabenContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = standardBuchstaben.includes(cb.value));
+            }
+        }
+    </script>
+</body>
+</html>
+
+
