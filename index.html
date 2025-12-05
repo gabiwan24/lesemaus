@@ -1,258 +1,442 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Lese-Lern-App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playwrite+DE+Grund:wght@100..400&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Playwrite DE Grund', cursive;
-            overscroll-behavior: none;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            background-color: #f9fafb;
-        }
-        
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type=number] { -moz-appearance: textfield; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Lese-Lern-App</title>
 
-        .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
-        .card-shadow { box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1); }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playwrite+DE+Grund:wght@100..400&display=swap" rel="stylesheet">
 
-        #swipe-feedback-bg { transition: background-color 0.15s ease-out; will-change: background-color; }
-        .fade-out { animation: fadeOut 0.5s ease-out forwards; }
-        @keyframes fadeOut { from { opacity: 1; visibility: visible; } to { opacity: 0; visibility: hidden; } }
+  <style>
+    body {
+      font-family: 'Playwrite DE Grund', cursive;
+      overscroll-behavior: none;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      background-color: #f9fafb;
+    }
 
-        /* Tier Icons */
-        .animal-icon { transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); filter: grayscale(100%); opacity: 0.3; transform: scale(0.8); }
-        .animal-active { filter: grayscale(0%); opacity: 1; transform: scale(1.5); z-index: 10; }
-    </style>
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+
+    .card-shadow { box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1); }
+
+    #swipe-feedback-bg { transition: background-color 0.15s ease-out; will-change: background-color; }
+    .fade-out { animation: fadeOut 0.5s ease-out forwards; }
+    @keyframes fadeOut { from { opacity: 1; visibility: visible; } to { opacity: 0; visibility: hidden; } }
+
+    .animal-icon {
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      filter: grayscale(100%);
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    .animal-active {
+      transform: scale(1.5);
+      filter: grayscale(0%);
+      opacity: 1;
+    }
+
+    /* Safe area helper */
+    .safe-area-pb { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+
+    /* Canvas layer (Matter) */
+    #physics-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      pointer-events: none;
+    }
+  </style>
 </head>
+
 <body class="w-screen h-[100dvh] overflow-hidden flex flex-col select-none">
 
-    <div id="intro-screen" class="fixed inset-0 z-[100] bg-white flex items-center justify-center transition-opacity duration-500">
-        <h1 class="text-5xl md:text-7xl font-bold text-blue-600 animate-bounce">Lesemaus</h1>
+  <div id="intro-screen" class="fixed inset-0 z-[100] bg-white flex items-center justify-center transition-opacity duration-500">
+    <h1 class="text-5xl md:text-7xl font-bold text-blue-600 animate-bounce">Lesemaus</h1>
+  </div>
+
+  <div id="swipe-feedback-bg" class="absolute inset-0 z-0 pointer-events-none"></div>
+
+  <div id="app" class="relative w-full h-full z-10 flex flex-col hidden opacity-0 transition-opacity duration-500">
+
+    <!-- 1. EINSTELLUNGEN -->
+    <div id="startbildschirm" class="flex flex-col h-full p-4 bg-white z-50 relative overflow-y-auto">
+      <h1 class="text-3xl font-bold text-center text-blue-600 mb-4 mt-2 shrink-0">Lese-Training</h1>
+
+      <div class="flex-grow flex flex-col gap-6">
+
+        <!-- Heft Auswahl (Buttons) -->
+        <div class="shrink-0">
+          <label class="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 px-1">1. Lernstand wählen</label>
+          <div id="heft-buttons-container" class="grid grid-cols-1 gap-3"></div>
+        </div>
+
+        <!-- Gelernte Buchstaben -->
+        <fieldset class="border-2 border-gray-200 rounded-xl p-3 flex flex-col shrink-0 transition-all duration-300 bg-gray-50">
+          <legend class="text-base font-bold px-2 text-blue-700">2. Buchstaben im aktuellen Heft</legend>
+          <div class="text-xs text-gray-500 px-1 mb-2 italic">
+            Bereits gelernt (automatisch dabei):
+            <span id="prev-letters-list" class="font-bold text-gray-700">-</span>
+          </div>
+          <div id="buchstaben-container" class="grid grid-cols-4 sm:grid-cols-6 gap-3"></div>
+        </fieldset>
+
+        <!-- Optionen -->
+        <fieldset class="border-2 border-gray-200 rounded-xl p-3 shrink-0 bg-gray-50">
+          <legend class="text-base font-bold px-2 text-gray-700 mb-2">Optionen</legend>
+
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label id="lbl-min" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 text-center whitespace-nowrap">Min 1 Silbe</label>
+              <input type="number" id="min-silben" value="1" min="1" max="5"
+                class="w-full text-center border-2 border-gray-300 rounded-xl py-3 bg-white text-xl font-bold shadow-sm focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label id="lbl-max" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 text-center whitespace-nowrap">Max 2 Silben</label>
+              <input type="number" id="max-silben" value="2" min="1" max="5"
+                class="w-full text-center border-2 border-gray-300 rounded-xl py-3 bg-white text-xl font-bold shadow-sm focus:border-blue-500 outline-none">
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="flex rounded-xl overflow-hidden border-2 border-blue-600 mb-3 bg-white shadow-sm">
+              <button id="btn-mode-count" class="mode-btn flex-1 py-3 text-base font-bold bg-blue-600 text-white transition-colors">Anzahl</button>
+              <button id="btn-mode-time" class="mode-btn flex-1 py-3 text-base font-bold bg-white text-blue-600 transition-colors">Zeit</button>
+            </div>
+
+            <div id="input-container-count" class="block">
+              <input type="number" id="woerter-pro-runde" value="10" min="1" max="50"
+                class="w-full text-center border-2 border-gray-300 rounded-xl py-3 bg-white text-xl font-bold placeholder-gray-400 shadow-sm focus:border-blue-500 outline-none"
+                placeholder="Anzahl Wörter">
+            </div>
+
+            <div id="input-container-time" class="hidden">
+              <input type="number" id="zeit-limit" value="5" min="1" max="20"
+                class="w-full text-center border-2 border-gray-300 rounded-xl py-3 bg-white text-xl font-bold placeholder-gray-400 shadow-sm focus:border-blue-500 outline-none"
+                placeholder="Minuten">
+            </div>
+          </div>
+
+          <div class="flex justify-between gap-3">
+            <div class="flex-1 bg-white p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-gray-200 shadow-sm px-4 py-3">
+              <input id="silben-faerben" type="checkbox" checked class="h-6 w-6 text-blue-600 rounded flex-shrink-0 accent-blue-600">
+              <label for="silben-faerben" class="text-base font-bold text-gray-700">Bunt</label>
+            </div>
+            <div class="flex-1 bg-white p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-gray-200 shadow-sm px-4 py-3">
+              <input id="silben-abstand" type="checkbox" class="h-6 w-6 text-blue-600 rounded flex-shrink-0 accent-blue-600">
+              <label for="silben-abstand" class="text-base font-bold text-gray-700">Abstand</label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="shrink-0 pt-6 pb-4 safe-area-pb">
+        <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-5 rounded-2xl shadow-lg active:scale-95 transition-transform">
+          Start!
+        </button>
+      </div>
     </div>
 
-    <div id="swipe-feedback-bg" class="absolute inset-0 z-0 pointer-events-none"></div>
+    <!-- 2. SPIELFELD -->
+    <div id="spiel" class="hidden w-full h-full relative flex flex-col">
+      <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
+        <div class="flex flex-col gap-2 pointer-events-auto items-start">
+          <button id="stop-button" class="hidden bg-red-100 text-red-600 hover:bg-red-200 font-bold text-xs px-3 py-2 rounded-full shadow-sm border border-red-200 mb-1 transition-all active:scale-95">
+            <span class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/>
+              </svg>
+              Beenden
+            </span>
+          </button>
 
-    <div id="app" class="relative w-full h-full z-10 flex flex-col hidden opacity-0 transition-opacity duration-500">
-
-        <div id="startbildschirm" class="flex flex-col h-full p-3 bg-white z-50 relative">
-            <h1 class="text-2xl font-bold text-center text-blue-600 mb-2 mt-1 shrink-0">Lese-Training</h1>
-
-            <div class="flex-grow flex flex-col gap-2 overflow-hidden">
-                
-                <div class="shrink-0">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">1. Lernstand wählen</label>
-                    <div id="heft-buttons-container" class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                        </div>
-                </div>
-
-                <fieldset class="border border-gray-200 rounded-xl p-2 flex flex-col min-h-0 shrink transition-all duration-300">
-                    <legend class="text-sm font-semibold px-2 text-gray-500">2. Buchstaben im aktuellen Heft</legend>
-                    <div class="text-[10px] text-gray-400 px-1 mb-1 italic">Bereits gelernt: <span id="prev-letters-list" class="font-bold text-gray-500">-</span></div>
-                    <div class="overflow-y-auto px-1">
-                        <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 gap-2 pb-1"></div>
-                    </div>
-                </fieldset>
-
-                <fieldset class="border border-gray-200 rounded-xl p-2 shrink-0">
-                    <legend class="text-sm font-semibold px-2 text-gray-500">Optionen</legend>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                            <label id="lbl-min" class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 text-center whitespace-nowrap">Min 1 Silbe</label>
-                            <input type="number" id="min-silben" value="1" min="1" max="5" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-gray-50 text-lg font-bold">
-                        </div>
-                        <div>
-                            <label id="lbl-max" class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 text-center whitespace-nowrap">Max 2 Silben</label>
-                            <input type="number" id="max-silben" value="2" min="1" max="5" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-gray-50 text-lg font-bold">
-                        </div>
-                    </div>
-
-                    <div class="mb-2">
-                        <div class="flex rounded-lg overflow-hidden border border-gray-200 mb-2 bg-gray-50">
-                            <button id="btn-mode-count" class="mode-btn flex-1 py-1.5 text-sm font-bold bg-blue-600 text-white transition-colors">Anzahl</button>
-                            <button id="btn-mode-time" class="mode-btn flex-1 py-1.5 text-sm font-bold bg-transparent text-gray-600 transition-colors">Zeit</button>
-                        </div>
-                        <div id="input-container-count" class="block">
-                            <input type="number" id="woerter-pro-runde" value="10" min="1" max="50" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-white text-lg font-bold placeholder-gray-400" placeholder="Anzahl">
-                        </div>
-                        <div id="input-container-time" class="hidden">
-                            <input type="number" id="zeit-limit" value="5" min="1" max="20" class="w-full text-center border-gray-300 rounded-lg py-1.5 bg-white text-lg font-bold placeholder-gray-400" placeholder="Minuten">
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-between gap-2">
-                        <div class="flex-1 bg-gray-50 p-1.5 rounded-lg flex items-center justify-center gap-2 border border-gray-100 px-2">
-                            <input id="silben-faerben" type="checkbox" checked class="h-5 w-5 text-blue-600 rounded flex-shrink-0">
-                            <label for="silben-faerben" class="text-xs font-medium text-gray-600">Bunt</label>
-                        </div>
-                        <div class="flex-1 bg-gray-50 p-1.5 rounded-lg flex items-center justify-center gap-2 border border-gray-100 px-2">
-                            <input id="silben-abstand" type="checkbox" class="h-5 w-5 text-blue-600 rounded flex-shrink-0">
-                            <label for="silben-abstand" class="text-xs font-medium text-gray-600">Abstand</label>
-                        </div>
-                    </div>
-                </fieldset>
+          <div class="flex gap-2">
+            <div id="fortschritt-anzeige" class="text-blue-600 font-mono font-bold text-lg bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-gray-100 flex items-center">
+              <span id="fortschritt-text">1 / 10</span>
             </div>
-
-            <div class="shrink-0 pt-3 pb-2 safe-area-pb">
-                <button id="start-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform">Start!</button>
+            <div id="timer-display" class="text-blue-600 font-mono font-bold text-lg bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-gray-100 flex items-center">
+              00:00
             </div>
+          </div>
         </div>
 
-        <div id="spiel" class="hidden w-full h-full relative flex flex-col">
-            <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
-                <div class="flex flex-col gap-2 pointer-events-auto items-start">
-                    <button id="stop-button" class="hidden bg-red-100 text-red-600 hover:bg-red-200 font-bold text-xs px-3 py-2 rounded-full shadow-sm border border-red-200 mb-1 transition-all active:scale-95">
-                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/></svg> Beenden</span>
-                    </button>
-                    <div class="flex gap-2">
-                        <div id="fortschritt-anzeige" class="text-blue-600 font-mono font-bold text-lg bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-gray-100 flex items-center">
-                            <span id="fortschritt-text">1 / 10</span>
-                        </div>
-                        <div id="timer-display" class="text-blue-600 font-mono font-bold text-lg bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-gray-100 flex items-center">00:00</div>
-                    </div>
-                </div>
-                <button id="einstellungen-button" class="text-gray-400 hover:text-blue-600 bg-white/90 backdrop-blur p-2 rounded-full shadow-sm border border-gray-100 pointer-events-auto active:scale-90 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-            </div>
-            <div id="2d-canvas-container" class="absolute inset-0 z-0 w-full h-full"></div>
-            <div class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4 pb-20">
-                <div id="card-swipe-layer" class="w-full max-w-xs aspect-[3/2] pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none will-change-transform relative">
-                    <div id="card-content-layer" class="w-full h-full bg-white rounded-3xl card-shadow border border-gray-200 flex items-center justify-center relative overflow-hidden bg-white select-none transition-colors duration-150">
-                        <div id="wort-anzeige-container" class="w-full h-full flex items-center justify-center p-4 relative z-10 pointer-events-none">
-                            <span id="wort-anzeige" class="font-bold whitespace-nowrap select-none text-gray-800 leading-none"></span>
-                        </div>
-                        <div id="card-overlay" class="absolute inset-0 z-20 flex items-center justify-center opacity-0 transition-opacity duration-150 bg-transparent pointer-events-none"></div>
-                    </div>
-                </div>
-            </div>
-            <div id="los-button-container" class="hidden absolute bottom-10 left-0 right-0 flex justify-center z-50 pointer-events-none">
-                <button id="los-button" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-3 px-12 rounded-full shadow-xl transition-transform duration-150 hover:scale-105 active:scale-95 animate-bounce">Los!</button>
-            </div>
-        </div>
+        <button id="einstellungen-button" class="text-gray-400 hover:text-blue-600 bg-white/90 backdrop-blur p-2 rounded-full shadow-sm border border-gray-100 pointer-events-auto active:scale-90 transition-transform">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16m-7 6h7"></path>
+          </svg>
+        </button>
+      </div>
 
-        <div id="auswertung" class="hidden absolute inset-0 z-[60] bg-white flex flex-col justify-center items-center p-6">
-            <h2 class="text-4xl font-bold text-blue-600 mb-6 drop-shadow-sm">Super!</h2>
-            
-            <div id="tier-leiter" class="flex flex-col-reverse items-center gap-1 mb-8 w-full max-w-xs h-64 justify-center">
-                </div>
+      <div id="2d-canvas-container" class="absolute inset-0 z-0 w-full h-full"></div>
 
-            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 w-full max-w-xs text-center">
-                <p class="text-gray-500 text-sm mb-1">Ergebnis</p>
-                <p class="text-2xl font-bold text-gray-800 mb-1"><span id="richtige-woerter-anzahl" class="text-green-600">0</span> richtig</p>
-                <p class="text-base text-gray-500">Zeit: <span id="gesamt-zeit-anzeige" class="font-mono text-gray-700">00:00</span></p>
+      <div class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4 pb-20">
+        <div id="card-swipe-layer" class="w-full max-w-xs aspect-[3/2] pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none will-change-transform relative">
+          <div id="card-content-layer" class="w-full h-full bg-white rounded-3xl card-shadow border border-gray-200 flex items-center justify-center relative overflow-hidden select-none transition-colors duration-150">
+            <div id="wort-anzeige-container" class="w-full h-full flex items-center justify-center p-4 relative z-10 pointer-events-none">
+              <span id="wort-anzeige" class="font-bold whitespace-nowrap select-none text-gray-800 leading-none"></span>
             </div>
-            <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Nochmal spielen</button>
+            <div id="card-overlay" class="absolute inset-0 z-20 flex items-center justify-center opacity-0 transition-opacity duration-150 bg-transparent pointer-events-none"></div>
+          </div>
         </div>
+      </div>
+
+      <div id="los-button-container" class="hidden absolute bottom-10 left-0 right-0 flex justify-center z-50 pointer-events-none">
+        <button id="los-button" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-3xl py-3 px-12 rounded-full shadow-xl transition-transform duration-150 hover:scale-105 active:scale-95 animate-bounce">
+          Los!
+        </button>
+      </div>
     </div>
 
-    <script>
-        // --- DATEN ---
-        const HEFTE = [
-            { name: "1", desc: "M, A, L, I, O, S...", buchstaben: ['M', 'A', 'L', 'I', 'O', 'S'] },
-            { name: "2", desc: "E, N, D, U, P, K", buchstaben: ['E', 'N', 'D', 'U', 'P', 'K'] },
-            { name: "3", desc: "H, T, R, F, W...", buchstaben: ['H', 'T', 'R', 'F', 'W', 'Ei', 'Au', 'Eu'] },
-            { name: "4", desc: "B, G, J, Z, Ch...", buchstaben: ['B', 'G', 'J', 'Z', 'Ch', 'Sch', 'Ck', 'Ä', 'Ö', 'Ü', 'V', 'X', 'Y', 'Q'] }
-        ];
+    <!-- 3. AUSWERTUNG -->
+    <div id="auswertung" class="hidden absolute inset-0 z-[60] bg-white flex flex-col justify-center items-center p-6">
+      <h2 class="text-4xl font-bold text-blue-600 mb-6 drop-shadow-sm">Super!</h2>
 
-        // SKALA: Wörter pro 5 Minuten (als Basis) -> WPM = Wert / 5
-        // Snail: 5 words/5min = 1 wpm
-        // Cheetah: 25 words/5min = 5 wpm
-        const ANIMALS = [
-            { icon: '🐌', wpm: 1 }, // < 1 WPM
-            { icon: '🐢', wpm: 2 }, 
-            { icon: '🐇', wpm: 3 }, 
-            { icon: '🐎', wpm: 4 }, 
-            { icon: '🐆', wpm: 5 }  // >= 5 WPM
-        ];
+      <div id="tier-leiter" class="flex flex-col-reverse items-center gap-1 mb-8 w-full max-w-xs h-64 justify-center"></div>
 
-        const VOKALE_LISTE = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü'];
-        const DIPHTHONGE_LISTE = ['Ei', 'Ai', 'Eu', 'Au'];
-        const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
-        
-        const WOERTERBUCH = [
-            // Heft 1
-            ['Ma', 'ma'], ['Pa', 'pa'], ['O', 'ma'], ['O', 'pa'], ['La', 'ma'], ['Li', 'mo'], ['Li', 'la'], ['Lo', 'la'], ['Ma', 'li'], ['Mi', 'mi'], ['Sa', 'la', 'mi'], ['Sa', 'lat'], ['So', 'fa'], ['Li', 'sa'], ['Ali'], ['Mo', 'fa'], ['Sal', 'sa'], ['Moll'], ['Loll', 'i'],
-            // Heft 2 (E, N, D, U, P, K)
-            ['En', 'te'], ['E', 'sel'], ['Na', 'se'], ['No', 'te'], ['Nu', 'del'], ['Na', 'del'], ['Do', 'se'], ['Mon', 'd'], ['Un', 'd'], ['Hu', 'nd'], ['Ka', 'nu'], ['Pa', 'pa'], ['Pa', 'ket'], ['Pin', 'sel'], ['Pup', 'pe'], ['Lam', 'pe'], ['Am', 'pel'], ['Kin', 'd'], ['Ki', 'no'], ['Kis', 'te'], ['Klas', 'se'], ['Ka', 'me', 'l'], ['In', 'sel'], ['San', 'd'], ['Son', 'ne'], ['To', 'ma', 'te'], ['Me', 'lo', 'ne'], ['Ba', 'na', 'ne'], ['Man', 'tel'], ['Kap', 'pe'], ['Tas', 'se'], ['Den', 'ken'], ['Dun', 'kel'], ['Pun', 'kt'], ['Kan', 'ne'], ['Po', 'ni'], ['Pan', 'da'],
-            // Heft 3 & 4 Mix
-            ['Hut'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi', 'sch'], ['Vo', 'gel'], ['Blu', 'me'], ['Wol', 'ke'], ['Re', 'gen'], ['Schnee'], ['Eis'], ['Wa', 'l'], ['Zeb', 'ra'], ['Lö', 'we'], ['Ti', 'ger'], ['En', 'te'], ['Gans'], ['Huhn'], ['Kuh'], ['Scha', 'f'], ['Pferd'], ['Au', 'to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee']
-        ];
+      <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 w-full max-w-xs text-center">
+        <p class="text-gray-500 text-sm mb-1">Ergebnis</p>
+        <p class="text-2xl font-bold text-gray-800 mb-1">
+          <span id="richtige-woerter-anzahl" class="text-green-600">0</span> richtig
+        </p>
+        <p class="text-base text-gray-500">
+          Zeit: <span id="gesamt-zeit-anzeige" class="font-mono text-gray-700">00:00</span>
+        </p>
+      </div>
 
-        // --- STATE ---
-        const state = {
-            settings: { heftIndex: 1, buchstaben: [], minSilben: 1, maxSilben: 2, mode: 'count', targetValue: 10, farben: true, abstand: false },
-            game: { runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: false, finished: false, letterStats: {}, wordStartTime: 0, startTimeGlobal: 0, timerInterval: null, realWordsPossible: [] },
-            view: { zoom: 1, targetZoom: 1 }
-        };
+      <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">
+        Nochmal spielen
+      </button>
+    </div>
+  </div>
 
-        // --- DOM ---
-        const dom = {
-            intro: document.getElementById('intro-screen'), app: document.getElementById('app'),
-            views: { start: document.getElementById('startbildschirm'), spiel: document.getElementById('spiel'), ende: document.getElementById('auswertung') },
-            inputs: { heftContainer: document.getElementById('heft-buttons-container'), container: document.getElementById('buchstaben-container'), prevList: document.getElementById('prev-letters-list'), min: document.getElementById('min-silben'), max: document.getElementById('max-silben'), modeCount: document.getElementById('btn-mode-count'), modeTime: document.getElementById('btn-mode-time'), countInput: document.getElementById('input-container-count'), timeInput: document.getElementById('input-container-time'), valCount: document.getElementById('woerter-pro-runde'), valTime: document.getElementById('zeit-limit'), color: document.getElementById('silben-faerben'), gap: document.getElementById('silben-abstand'), lblMin: document.getElementById('lbl-min'), lblMax: document.getElementById('lbl-max') },
-            btns: { start: document.getElementById('start-button'), settings: document.getElementById('einstellungen-button'), back: document.getElementById('zurueck-button'), los: document.getElementById('los-button'), stop: document.getElementById('stop-button') },
-            card: { swipe: document.getElementById('card-swipe-layer'), content: document.getElementById('card-content-layer'), textContainer: document.getElementById('wort-anzeige-container'), text: document.getElementById('wort-anzeige'), overlay: document.getElementById('card-overlay'), bg: document.getElementById('swipe-feedback-bg') },
-            stats: { progressText: document.getElementById('fortschritt-text'), timer: document.getElementById('timer-display'), resRight: document.getElementById('richtige-woerter-anzahl'), resTime: document.getElementById('gesamt-zeit-anzeige'), animals: document.getElementById('tier-leiter') },
-            misc: { losContainer: document.getElementById('los-button-container') }
-        };
+  <script>
+    'use strict';
 
-        let engine, render, runner, stirrer, physicsActive = false;
+    // =========================
+    // DATEN
+    // =========================
+    const HEFTE = [
+      { name: "1", desc: "M, A, L, I, O, S...", buchstaben: ['M', 'A', 'L', 'I', 'O', 'S'] },
+      { name: "2", desc: "E, N, D, U, P, K", buchstaben: ['E', 'N', 'D', 'U', 'P', 'K'] },
+      { name: "3", desc: "H, T, R, F, W...", buchstaben: ['H', 'T', 'R', 'F', 'W', 'Ei', 'Au', 'Eu'] },
+      { name: "4", desc: "B, G, J, Z, Ch...", buchstaben: ['B', 'G', 'J', 'Z', 'Ch', 'Sch', 'Ck', 'Ä', 'Ö', 'Ü', 'V', 'X', 'Y', 'Q'] }
+    ];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                initHeftUI();
-                ladeEinstellungen();
-                initSwipeLogic();
-                startAppSequence();
-                dom.btns.start.onclick = startGame;
-                dom.btns.settings.onclick = showStart;
-                dom.btns.back.onclick = showStart;
-                dom.btns.los.onclick = triggerExplosion;
-                dom.inputs.modeCount.onclick = () => setMode('count');
-                dom.inputs.modeTime.onclick = () => setMode('time');
-                dom.inputs.min.addEventListener('input', updateLabels);
-                dom.inputs.max.addEventListener('input', updateLabels);
-                dom.btns.stop.onclick = handleStopButton;
-                window.addEventListener('resize', () => { if(physicsActive) resizePhysics(); adjustFontSize(); });
-                document.addEventListener('mousemove', moveStirrer);
-                document.addEventListener('touchmove', moveStirrer, {passive: false});
-                document.addEventListener('touchstart', handleInteractionStart, {passive: false});
-                document.addEventListener('mousedown', handleInteractionStart);
-                updateLabels();
-            } catch (e) {
-                dom.intro.style.display = 'none'; dom.app.classList.remove('hidden'); dom.app.style.opacity = '1'; dom.views.start.classList.remove('hidden'); dom.views.start.classList.add('flex');
-            }
-        });
+    const ANIMALS = [
+      { icon: '🐌', wpm: 1 },
+      { icon: '🐢', wpm: 2 },
+      { icon: '🐇', wpm: 3 },
+      { icon: '🐎', wpm: 4 },
+      { icon: '🐆', wpm: 5 }
+    ];
 
-        // --- UI ---
-        function initHeftUI() {
-            dom.inputs.heftContainer.innerHTML = HEFTE.map((h, i) => 
-                `<button class="heft-btn w-full text-left p-3 rounded-xl border-2 transition-all duration-200 flex flex-col relative overflow-hidden group" onclick="selectHeft(${i})">
-                    <span class="font-bold text-lg relative z-10">Heft ${h.name}</span>
-                    <span class="text-xs opacity-80 truncate w-full relative z-10">${h.buchstaben.join(', ')}</span>
-                    <div class="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-50 transition-opacity z-0"></div>
-                </button>`
-            ).join('');
-        }
+    const VOKALE_LISTE = new Set(['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü']);
+    const DIPHTHONGE_LISTE = new Set(['Ei', 'Ai', 'Eu', 'Au']);
+    const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
 
-        function selectHeft(index) {
-            state.settings.heftIndex = index;
-            const buttons = dom.inputs.heftContainer.querySelectorAll('.heft-btn');
-            buttons.forEach((btn, i) => {
-                btn.className = 'heft-btn w-full text-left p-3 rounded-xl border-2 transition-all duration-200 flex flex-col relative overflow-hidden group';
-                if (i === index) btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-900', 'shadow-sm');
-                else if (i < index) btn.classList.add('border-blue-200', 'bg-blue-100', 'text-blue-800', 'opacity-60');
-                else btn.classList.add('border-gray-200
+    // Wörterbuch: Silben/Teile (einige sind einsilbig als ganze Wörter)
+    const WOERTERBUCH = [
+      ['O','ma'], ['O','pa'], ['Ma','ma'], ['Pa','pa'], ['La','ma'], ['Li','mo'], ['Li','la'], ['Lo','la'], ['Ma','li'], ['Mi','mi'],
+      ['E','sel'], ['Na','se'], ['Ro','se'], ['So','fa'], ['Sa','la','mi'], ['Sa','lat'], ['To','ma','te'], ['Me','lo','ne'],
+      ['Ba','na','ne'], ['Am','pel'], ['Ap','fel'], ['Son','ne'], ['Mon','d'], ['Ste','rn'], ['Ti','sch'], ['Stu','hl'], ['Nu','del'],
+      ['Pi','rat'], ['Ra','ke','te'], ['Hu','nd'], ['Ka','tze'],
+      ['Maus'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi','sch'], ['Vo','gel'], ['Blu','me'], ['Wol','ke'], ['Re','gen'],
+      ['Schnee'], ['Eis'], ['Wa','l'], ['Zebra'], ['Lö','we'], ['Ti','ger'], ['En','te'], ['Gan','s'], ['Huh','n'], ['Kuh'], ['Scha','f'],
+      ['Pferd'], ['Au','to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee'], ['Pa','ket'], ['Ka','mel'], ['In','sel'], ['Pin','sel']
+    ];
+
+    // =========================
+    // HELPERS
+    // =========================
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const nowMs = () => Date.now();
+
+    function shuffleInPlace(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function formatMMSS(ms) {
+      const sec = Math.max(0, Math.floor(ms / 1000));
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // =========================
+    // STATE
+    // =========================
+    const state = {
+      settings: {
+        heftIndex: 0,
+        buchstaben: [],
+        minSilben: 1,
+        maxSilben: 2,
+        mode: 'count',          // 'count' | 'time'
+        targetValue: 10,        // count: Wörter, time: Minuten
+        farben: true,
+        abstand: false,
+        currentLetters: []      // werden beim Start berechnet
+      },
+      game: {
+        runde: 0,
+        richtig: 0,
+        history: new Set(),
+        colorIndex: 0,
+        active: false,
+        finished: false,
+        letterStats: {},
+        wordStartTime: 0,
+        startTimeGlobal: 0,
+        timerInterval: null,
+        realWordsPossible: [],
+        unusedRealWords: []
+      },
+      view: { zoom: 1, targetZoom: 1 }
+    };
+
+    // =========================
+    // DOM
+    // =========================
+    const dom = {
+      intro: document.getElementById('intro-screen'),
+      app: document.getElementById('app'),
+      views: {
+        start: document.getElementById('startbildschirm'),
+        spiel: document.getElementById('spiel'),
+        ende: document.getElementById('auswertung')
+      },
+      inputs: {
+        heftContainer: document.getElementById('heft-buttons-container'),
+        container: document.getElementById('buchstaben-container'),
+        prevList: document.getElementById('prev-letters-list'),
+        min: document.getElementById('min-silben'),
+        max: document.getElementById('max-silben'),
+        modeCount: document.getElementById('btn-mode-count'),
+        modeTime: document.getElementById('btn-mode-time'),
+        countInput: document.getElementById('input-container-count'),
+        timeInput: document.getElementById('input-container-time'),
+        valCount: document.getElementById('woerter-pro-runde'),
+        valTime: document.getElementById('zeit-limit'),
+        color: document.getElementById('silben-faerben'),
+        gap: document.getElementById('silben-abstand'),
+        lblMin: document.getElementById('lbl-min'),
+        lblMax: document.getElementById('lbl-max')
+      },
+      btns: {
+        start: document.getElementById('start-button'),
+        settings: document.getElementById('einstellungen-button'),
+        back: document.getElementById('zurueck-button'),
+        los: document.getElementById('los-button'),
+        stop: document.getElementById('stop-button')
+      },
+      card: {
+        swipe: document.getElementById('card-swipe-layer'),
+        content: document.getElementById('card-content-layer'),
+        textContainer: document.getElementById('wort-anzeige-container'),
+        text: document.getElementById('wort-anzeige'),
+        overlay: document.getElementById('card-overlay'),
+        bg: document.getElementById('swipe-feedback-bg')
+      },
+      stats: {
+        progressText: document.getElementById('fortschritt-text'),
+        timer: document.getElementById('timer-display'),
+        resRight: document.getElementById('richtige-woerter-anzahl'),
+        resTime: document.getElementById('gesamt-zeit-anzeige'),
+        animals: document.getElementById('tier-leiter')
+      },
+      misc: { losContainer: document.getElementById('los-button-container') },
+      canvasContainer: document.getElementById('2d-canvas-container')
+    };
+
+    // =========================
+    // PHYSICS (Matter.js) - optimiert: eigener Canvas + Engine
+    // =========================
+    let engine = null;
+    let world = null;
+    let stirrer = null;
+    let physicsActive = false;
+
+    let canvas = null;
+    let ctx = null;
+    let rafId = null;
+
+    function startPhysics() {
+      stopPhysics();
+
+      engine = Matter.Engine.create({ enableSleeping: true });
+      world = engine.world;
+
+      // Canvas erstellen
+      canvas = document.createElement('canvas');
+      canvas.id = 'physics-canvas';
+      dom.canvasContainer.innerHTML = '';
+      dom.canvasContainer.appendChild(canvas);
+      ctx = canvas.getContext('2d', { alpha: true });
+
+      resizePhysics();
+
+      physicsActive = true;
+      loopPhysics();
+    }
+
+    function stopPhysics() {
+      physicsActive = false;
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      engine = null;
+      world = null;
+      stirrer = null;
+
+      canvas = null;
+      ctx = null;
+      dom.canvasContainer.innerHTML = '';
+    }
+
+    function resizePhysics() {
+      if (!canvas || !ctx) return;
+      const w = dom.canvasContainer.clientWidth;
+      const h = dom.canvasContainer.clientHeight;
+
+      // DevicePixelRatio
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      createWalls(w, h);
+    }
+
+    function createWalls(w, h) {
+      if (!world) return;
+
+      // Alle Walls entfernen, nicht alles clearen (wir behalten Partikel)
+      const bodies = Matter.Composite.allBodies(world);
+      for (const b of bodies) {
+        if (b.label === 'wall') Matter.Composite.remove(world, b);
+      }
+
+      const th = 200;
+      const opts = { isStatic: true, label: 'wall', friction: 1, restitution: 0 };
+      const floor = Matter.Bodies.rectangle(w / 2, h + th / 2, w + 200, th, opts);
+      const left = Matter.Bodies.rectangle(-th / 2, h / 2, th, h * 2, opts);
+      const right = Matter.Bodies.rectangle(w + th / 2, h / 2, th, h * 2, opts);
+      Matter.Composite.add(world, [floor, left, 
