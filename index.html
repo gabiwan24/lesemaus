@@ -31,6 +31,10 @@
         #swipe-feedback-bg { transition: background-color 0.15s ease-out; will-change: background-color; }
         .fade-out { animation: fadeOut 0.5s ease-out forwards; }
         @keyframes fadeOut { from { opacity: 1; visibility: visible; } to { opacity: 0; visibility: hidden; } }
+
+        /* Graustufen Filter für nicht erreichte Tiere */
+        .grayscale-icon { filter: grayscale(100%); opacity: 0.3; transform: scale(0.8); }
+        .active-animal { transform: scale(1.2); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
     </style>
 </head>
 <body class="w-screen h-[100dvh] overflow-hidden flex flex-col select-none">
@@ -43,32 +47,25 @@
 
     <div id="app" class="relative w-full h-full z-10 flex flex-col hidden opacity-0 transition-opacity duration-500">
 
-        <!-- 1. EINSTELLUNGEN -->
         <div id="startbildschirm" class="flex flex-col h-full p-3 bg-white z-50 relative">
             <h1 class="text-2xl font-bold text-center text-blue-600 mb-2 mt-1 shrink-0">Lese-Training</h1>
 
             <div class="flex-grow flex flex-col gap-2 overflow-hidden">
                 
-                <!-- Heft Auswahl -->
-                <div class="mb-1 shrink-0">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">1. Arbeitsheft</label>
-                    <select id="heft-auswahl" class="w-full p-2.5 border-2 border-blue-100 rounded-xl bg-blue-50 text-blue-800 font-bold text-lg focus:outline-none focus:border-blue-500 appearance-none">
-                        <!-- Optionen per JS -->
-                    </select>
+                <div class="shrink-0">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">1. Lernstand wählen</label>
+                    <div id="heft-buttons-container" class="flex flex-col gap-2">
+                        </div>
                 </div>
 
-                <!-- Gelernte Buchstaben (Nur aktuelles Heft) -->
-                <fieldset class="border border-gray-200 rounded-xl p-2 flex flex-col min-h-0 shrink transition-all duration-300">
-                    <legend class="text-sm font-semibold px-2 text-gray-500">2. Neue Buchstaben</legend>
-                    <div class="text-[10px] text-gray-400 px-1 mb-1 italic">Bereits gelernt (automatisch aktiv): <span id="prev-letters-list" class="font-bold text-gray-500">-</span></div>
+                <fieldset id="buchstaben-fieldset" class="border border-gray-200 rounded-xl p-2 flex flex-col min-h-0 shrink transition-all duration-300">
+                    <legend class="text-sm font-semibold px-2 text-gray-500">2. Buchstaben im aktuellen Heft</legend>
                     <div class="overflow-y-auto px-1">
-                        <div id="buchstaben-container" class="grid grid-cols-4 sm:grid-cols-6 gap-2 pb-1">
-                            <!-- Checkboxen nur für aktuelles Heft -->
-                        </div>
+                        <div id="buchstaben-container" class="grid grid-cols-5 sm:grid-cols-8 gap-2 pb-1">
+                            </div>
                     </div>
                 </fieldset>
 
-                <!-- Optionen -->
                 <fieldset class="border border-gray-200 rounded-xl p-2 shrink-0">
                     <legend class="text-sm font-semibold px-2 text-gray-500">Optionen</legend>
                     <div class="grid grid-cols-2 gap-2 mb-2">
@@ -116,7 +113,6 @@
             </div>
         </div>
 
-        <!-- 2. SPIELFELD -->
         <div id="spiel" class="hidden w-full h-full relative flex flex-col">
             <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
                 <div class="flex flex-col gap-2 pointer-events-auto items-start">
@@ -150,51 +146,58 @@
             </div>
         </div>
 
-        <!-- 3. AUSWERTUNG -->
         <div id="auswertung" class="hidden absolute inset-0 z-[60] bg-white flex flex-col justify-center items-center p-6">
-            <h2 class="text-5xl font-bold text-blue-600 mb-8 drop-shadow-sm">Super!</h2>
-            <div id="tier-bild-container" class="w-full max-w-xs h-40 mb-8 flex items-center justify-center text-gray-300 text-6xl">🦁</div>
-            <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-12 w-full max-w-xs text-center">
-                <p class="text-gray-500 text-lg mb-1">Ergebnis</p>
-                <p class="text-3xl font-bold text-gray-800 mb-2"><span id="richtige-woerter-anzahl" class="text-green-600">0</span> richtig</p>
-                <p class="text-lg text-gray-500">Zeit: <span id="gesamt-zeit-anzeige" class="font-mono text-gray-700">00:00</span></p>
+            <h2 class="text-4xl font-bold text-blue-600 mb-6 drop-shadow-sm">Super!</h2>
+            
+            <div id="tier-leiter" class="flex flex-col-reverse items-center gap-2 mb-8 w-full max-w-xs">
+                </div>
+
+            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-8 w-full max-w-xs text-center">
+                <p class="text-gray-500 text-sm mb-1">Ergebnis</p>
+                <p class="text-2xl font-bold text-gray-800 mb-1"><span id="richtige-woerter-anzahl" class="text-green-600">0</span> richtig</p>
+                <p class="text-base text-gray-500">Zeit: <span id="gesamt-zeit-anzeige" class="font-mono text-gray-700">00:00</span></p>
             </div>
             <button id="zurueck-button" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Nochmal spielen</button>
         </div>
     </div>
 
     <script>
-        // --- HEFTE STRUKTUR ---
+        // --- DATEN & KONFIGURATION ---
         const HEFTE = [
-            { name: "Heft 1 (Start M,A,L...)", buchstaben: ['M', 'A', 'L', 'I', 'O', 'S'] },
-            { name: "Heft 2 (E,N,D...)", buchstaben: ['E', 'N', 'D', 'U', 'P', 'K'] },
-            { name: "Heft 3 (Erweiterung)", buchstaben: ['H', 'T', 'R', 'F', 'W', 'Ei', 'Au', 'Eu'] },
-            { name: "Heft 4 (Komplett)", buchstaben: ['B', 'G', 'J', 'Z', 'Ch', 'Sch', 'Ck', 'Ä', 'Ö', 'Ü', 'V', 'X', 'Y', 'Q'] }
+            { name: "1", desc: "M, A, L, I, O, S...", buchstaben: ['M', 'A', 'L', 'I', 'O', 'S'] },
+            { name: "2", desc: "E, N, D, U, P, K", buchstaben: ['E', 'N', 'D', 'U', 'P', 'K'] },
+            { name: "3", desc: "H, T, R, F, W...", buchstaben: ['H', 'T', 'R', 'F', 'W', 'Ei', 'Au', 'Eu'] },
+            { name: "4", desc: "B, G, J, Z, Ch...", buchstaben: ['B', 'G', 'J', 'Z', 'Ch', 'Sch', 'Ck', 'Ä', 'Ö', 'Ü', 'V', 'X', 'Y', 'Q'] }
         ];
 
-        // --- WORTSCHATZ (Erweitert für alle Hefte) ---
-        const WOERTERBUCH = [
-            // Heft 1 (M, A, L, I, O, S)
-            ['Ma', 'ma'], ['Pa', 'pa'], ['O', 'ma'], ['O', 'pa'], ['La', 'ma'], ['Li', 'mo'], ['Li', 'la'], ['Lo', 'la'], ['Ma', 'li'], ['Mi', 'mi'], ['Sa', 'la', 'mi'], ['Sa', 'lat'], ['So', 'fa'], ['Li', 'sa'],
-            // Heft 2 (E, N, D, U, P, K)
-            ['En', 'te'], ['E', 'sel'], ['Na', 'se'], ['No', 'te'], ['Nu', 'del'], ['Na', 'del'], ['Dos', 'e'], ['Mon', 'd'], ['Un', 'd'], ['Hu', 'nd'], ['Ka', 'nu'], ['Pa', 'pa'], ['Pa', 'ket'], ['Pin', 'sel'], ['Pup', 'pe'], ['Lam', 'pe'], ['Am', 'pel'], ['Kin', 'd'], ['Ki', 'no'], ['Kis', 'te'], ['Klas', 'se'], ['Ka', 'me', 'l'], ['In', 'sel'], ['San', 'd'], ['Son', 'ne'], ['To', 'ma', 'te'], ['Me', 'lo', 'ne'], ['Ba', 'na', 'ne'], ['Man', 'tel'], ['Kap', 'pe'], ['Tas', 'se'],
-            // Heft 3 & 4
-            ['Hut'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi', 'sch'], ['Vo', 'gel'], ['Blu', 'me'], ['Wol', 'ke'], ['Re', 'gen'], ['Schnee'], ['Eis'], ['Wa', 'l'], ['Zeb', 'ra'], ['Lö', 'we'], ['Ti', 'ger'], ['En', 'te'], ['Gans'], ['Huhn'], ['Kuh'], ['Scha', 'f'], ['Pferd'], ['Au', 'to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee']
+        const ANIMALS = [
+            { icon: '🐌', wpm: 1 }, // Schnecke (< 5 Wörter/5min)
+            { icon: '🐢', wpm: 2 }, // Schildkröte (10 Wörter)
+            { icon: '🐇', wpm: 3 }, // Hase (15 Wörter)
+            { icon: '🐎', wpm: 4 }, // Pferd (20 Wörter)
+            { icon: '🐆', wpm: 5 }  // Gepard (> 25 Wörter)
         ];
 
         const VOKALE_LISTE = ['A', 'E', 'I', 'O', 'U', 'Ä', 'Ö', 'Ü'];
         const DIPHTHONGE_LISTE = ['Ei', 'Ai', 'Eu', 'Au'];
         const RAINBOW_COLORS = ['#9C4F96', '#FF6355', '#FBA949', '#FAE442', '#8BD448', '#2AA8F2'];
+        
+        const WOERTERBUCH = [
+            ['O', 'ma'], ['O', 'pa'], ['Ma', 'ma'], ['Pa', 'pa'], ['La', 'ma'], ['Li', 'mo'], ['Li', 'la'], ['Lo', 'la'], ['Ma', 'li'], ['Mi', 'mi'], ['Sa', 'la', 'mi'], ['Sa', 'lat'], ['So', 'fa'], ['Li', 'sa'], ['Ali'],
+            ['En', 'te'], ['E', 'sel'], ['Na', 'se'], ['No', 'te'], ['Nu', 'del'], ['Na', 'del'], ['Do', 'se'], ['Mon', 'd'], ['Un', 'd'], ['Hu', 'nd'], ['Ka', 'nu'], ['Pa', 'pa'], ['Pa', 'ket'], ['Pin', 'sel'], ['Pup', 'pe'], ['Lam', 'pe'], ['Am', 'pel'], ['Kin', 'd'], ['Ki', 'no'], ['Kis', 'te'], ['Klas', 'se'], ['Ka', 'me', 'l'], ['In', 'sel'], ['San', 'd'], ['Son', 'ne'], ['To', 'ma', 'te'], ['Me', 'lo', 'ne'], ['Ba', 'na', 'ne'], ['Man', 'tel'], ['Kap', 'pe'], ['Tas', 'se'], ['Nu', 'ss'], ['Ka', 'nu'],
+            ['Hut'], ['Haus'], ['Baum'], ['Ball'], ['Buch'], ['Fi', 'sch'], ['Vo', 'gel'], ['Blu', 'me'], ['Wol', 'ke'], ['Re', 'gen'], ['Schnee'], ['Eis'], ['Wa', 'l'], ['Zeb', 'ra'], ['Lö', 'we'], ['Ti', 'ger'], ['En', 'te'], ['Gans'], ['Huhn'], ['Kuh'], ['Scha', 'f'], ['Pferd'], ['Au', 'to'], ['Bus'], ['Zug'], ['Schiff'], ['See'], ['Tee'], ['Fee'], ['Klee']
+        ];
 
         // --- STATE ---
         const state = {
             settings: { 
-                heftIndex: 1, currentLetters: [], mode: 'count', targetValue: 10, 
-                minSilben: 1, maxSilben: 2, farben: true, abstand: false 
+                heftIndex: 1, buchstaben: [], minSilben: 1, maxSilben: 2, 
+                mode: 'count', targetValue: 10, farben: true, abstand: false 
             },
             game: { 
                 runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: false, finished: false,
-                letterStats: {}, wordStartTime: 0, startTimeGlobal: 0, timerInterval: null
+                letterStats: {}, wordStartTime: 0, startTimeGlobal: 0, timerInterval: null,
+                realWordsPossible: []
             },
             view: { zoom: 1, targetZoom: 1 }
         };
@@ -203,10 +206,10 @@
         const dom = {
             intro: document.getElementById('intro-screen'), app: document.getElementById('app'),
             views: { start: document.getElementById('startbildschirm'), spiel: document.getElementById('spiel'), ende: document.getElementById('auswertung') },
-            inputs: { heftSelect: document.getElementById('heft-auswahl'), container: document.getElementById('buchstaben-container'), prevList: document.getElementById('prev-letters-list'), min: document.getElementById('min-silben'), max: document.getElementById('max-silben'), modeCount: document.getElementById('btn-mode-count'), modeTime: document.getElementById('btn-mode-time'), countInput: document.getElementById('input-container-count'), timeInput: document.getElementById('input-container-time'), valCount: document.getElementById('woerter-pro-runde'), valTime: document.getElementById('zeit-limit'), color: document.getElementById('silben-faerben'), gap: document.getElementById('silben-abstand'), lblMin: document.getElementById('lbl-min'), lblMax: document.getElementById('lbl-max') },
+            inputs: { heftContainer: document.getElementById('heft-buttons-container'), container: document.getElementById('buchstaben-container'), prevList: document.getElementById('prev-letters-list'), min: document.getElementById('min-silben'), max: document.getElementById('max-silben'), modeCount: document.getElementById('btn-mode-count'), modeTime: document.getElementById('btn-mode-time'), countInput: document.getElementById('input-container-count'), timeInput: document.getElementById('input-container-time'), valCount: document.getElementById('woerter-pro-runde'), valTime: document.getElementById('zeit-limit'), color: document.getElementById('silben-faerben'), gap: document.getElementById('silben-abstand'), lblMin: document.getElementById('lbl-min'), lblMax: document.getElementById('lbl-max') },
             btns: { start: document.getElementById('start-button'), settings: document.getElementById('einstellungen-button'), back: document.getElementById('zurueck-button'), los: document.getElementById('los-button'), stop: document.getElementById('stop-button') },
             card: { swipe: document.getElementById('card-swipe-layer'), content: document.getElementById('card-content-layer'), textContainer: document.getElementById('wort-anzeige-container'), text: document.getElementById('wort-anzeige'), overlay: document.getElementById('card-overlay'), bg: document.getElementById('swipe-feedback-bg') },
-            stats: { progressText: document.getElementById('fortschritt-text'), timer: document.getElementById('timer-display'), resRight: document.getElementById('richtige-woerter-anzahl'), resTime: document.getElementById('gesamt-zeit-anzeige') },
+            stats: { progressText: document.getElementById('fortschritt-text'), timer: document.getElementById('timer-display'), resRight: document.getElementById('richtige-woerter-anzahl'), resTime: document.getElementById('gesamt-zeit-anzeige'), animals: document.getElementById('tier-leiter') },
             misc: { losContainer: document.getElementById('los-button-container') }
         };
 
@@ -215,7 +218,7 @@
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
             try {
-                initHeftSelection();
+                initHeftUI();
                 ladeEinstellungen();
                 initSwipeLogic();
                 startAppSequence();
@@ -224,7 +227,6 @@
                 dom.btns.settings.onclick = showStart;
                 dom.btns.back.onclick = showStart;
                 dom.btns.los.onclick = triggerExplosion;
-                dom.inputs.heftSelect.onchange = handleHeftChange;
                 dom.inputs.modeCount.onclick = () => setMode('count');
                 dom.inputs.modeTime.onclick = () => setMode('time');
                 dom.inputs.min.addEventListener('input', updateLabels);
@@ -257,43 +259,59 @@
             }
         });
 
-        // --- HEFT LOGIK ---
-        function initHeftSelection() {
-            dom.inputs.heftSelect.innerHTML = HEFTE.map((h, i) => `<option value="${i}">${h.name}</option>`).join('');
+        // --- MENÜ LOGIK ---
+        function initHeftUI() {
+            dom.inputs.heftContainer.innerHTML = HEFTE.map((h, i) => `
+                <button class="heft-btn w-full text-left p-3 rounded-xl border-2 transition-all duration-200 flex flex-col" data-idx="${i}" onclick="selectHeft(${i})">
+                    <span class="font-bold text-lg">Heft ${h.name}</span>
+                    <span class="text-xs opacity-80 truncate w-full">${h.buchstaben.join(', ')}</span>
+                </button>
+            `).join('');
         }
 
-        function handleHeftChange() {
-            const idx = parseInt(dom.inputs.heftSelect.value);
-            updateBuchstabenUI(idx);
+        function selectHeft(index) {
+            state.settings.heftIndex = index;
+            // Buttons aktualisieren
+            const buttons = dom.inputs.heftContainer.querySelectorAll('.heft-btn');
+            buttons.forEach((btn, i) => {
+                btn.className = 'heft-btn w-full text-left p-3 rounded-xl border-2 transition-all duration-200 flex flex-col'; // Reset
+                if (i === index) {
+                    // Aktiv (Aktuelles Heft)
+                    btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-800', 'shadow-sm');
+                } else if (i < index) {
+                    // Erledigt
+                    btn.classList.add('border-blue-200', 'bg-blue-100', 'text-blue-900', 'opacity-70');
+                } else {
+                    // Zukunft
+                    btn.classList.add('border-gray-200', 'bg-white', 'text-gray-400');
+                }
+            });
+
+            updateBuchstabenUI(index);
         }
 
         function updateBuchstabenUI(idx, savedSelection = null) {
             // 1. Vorherige Buchstaben (implizit aktiv)
             let prevLetters = [];
             for(let i=0; i<idx; i++) prevLetters = prevLetters.concat(HEFTE[i].buchstaben);
-            prevLetters = [...new Set(prevLetters)]; // Unique
+            prevLetters = [...new Set(prevLetters)];
+            dom.inputs.prevList.textContent = prevLetters.length > 0 ? prevLetters.join(', ') : '-';
             
-            dom.inputs.prevList.textContent = prevLetters.length > 0 ? prevLetters.join(', ') : '(Keine)';
-            
-            // 2. Aktuelle Buchstaben (Checkboxen)
+            // 2. Aktuelle Buchstaben
             const currentLetters = HEFTE[idx].buchstaben;
             dom.inputs.container.innerHTML = currentLetters.map(b => {
                 const checked = savedSelection ? savedSelection.includes(b) : true;
-                return `
-                <div class="flex items-center justify-center">
+                return `<div class="flex items-center justify-center">
                     <input type="checkbox" id="cb-${b}" value="${b}" class="peer hidden" ${checked ? 'checked' : ''}>
                     <label for="cb-${b}" class="w-full text-center py-2 border-2 border-gray-200 rounded-lg cursor-pointer text-gray-600 font-bold select-none transition-colors peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 text-sm sm:text-base bg-white shadow-sm hover:bg-gray-50">${b}</label>
                 </div>`;
             }).join('');
         }
 
-        // Helper: Holt ALLE erlaubten Buchstaben (Implizit + Explizit)
         function getAllAllowedLetters() {
-            const idx = parseInt(dom.inputs.heftSelect.value);
+            const idx = state.settings.heftIndex;
             let allowed = [];
-            // Vorherige Hefte
             for(let i=0; i<idx; i++) allowed = allowed.concat(HEFTE[i].buchstaben);
-            // Aktuelles Heft (nur Checked)
             const checked = Array.from(dom.inputs.container.querySelectorAll('input:checked')).map(c => c.value);
             allowed = allowed.concat(checked);
             return [...new Set(allowed)];
@@ -316,14 +334,7 @@
         function startAppSequence() {
             setTimeout(() => {
                 dom.intro.classList.add('fade-out');
-                setTimeout(() => {
-                    dom.intro.style.display = 'none';
-                    dom.app.classList.remove('hidden');
-                    void dom.app.offsetWidth;
-                    dom.app.style.opacity = '1';
-                    dom.views.start.classList.remove('hidden');
-                    dom.views.start.classList.add('flex');
-                }, 500);
+                setTimeout(() => { dom.intro.style.display = 'none'; dom.app.classList.remove('hidden'); void dom.app.offsetWidth; dom.app.style.opacity = '1'; dom.views.start.classList.remove('hidden'); dom.views.start.classList.add('flex'); }, 500);
             }, 1500);
         }
 
@@ -331,28 +342,22 @@
         function startGame() {
             saveSettings();
             
-            // State Init
             state.settings.currentLetters = getAllAllowedLetters();
             state.game = { runde: 0, richtig: 0, history: new Set(), colorIndex: 0, active: true, finished: false, letterStats: {}, startTimeGlobal: Date.now(), timerInterval: null };
             state.settings.currentLetters.forEach(b => state.game.letterStats[b] = 0);
             state.view = { zoom: 1, targetZoom: 1 };
 
-            // UI Reset
+            // Berechne mögliche echte Wörter für diese Runde (für die Misch-Logik)
+            calcPossibleRealWords();
+
             dom.views.start.classList.add('hidden'); dom.views.start.classList.remove('flex');
             dom.views.ende.classList.add('hidden'); dom.views.ende.classList.remove('flex');
             dom.views.spiel.classList.remove('hidden'); dom.views.spiel.classList.add('flex');
-            
             dom.misc.losContainer.classList.add('hidden');
             dom.card.swipe.classList.remove('hidden');
             
-            // Reset Card
-            dom.card.swipe.style.transition = 'none';
-            dom.card.swipe.style.transform = 'scale(1)';
-            dom.card.swipe.style.opacity = '1';
-            dom.card.content.classList.remove('animate-pop-in');
-            dom.card.overlay.style.opacity = '0';
+            dom.card.swipe.style.transition = 'none'; dom.card.swipe.style.transform = 'scale(1)'; dom.card.swipe.style.opacity = '1'; dom.card.content.classList.remove('animate-pop-in'); dom.card.overlay.style.opacity = '0';
 
-            // Mode Specifics
             if(state.settings.mode === 'time') {
                 dom.btns.stop.classList.remove('hidden');
                 dom.stats.progressText.parentElement.classList.remove('hidden');
@@ -370,12 +375,21 @@
             setTimeout(() => nextCard(true), 50);
         }
 
+        function calcPossibleRealWords() {
+             const allowedCharsFlat = new Set();
+             state.settings.currentLetters.forEach(token => token.toUpperCase().split('').forEach(char => allowedCharsFlat.add(char)));
+             
+             state.game.realWordsPossible = WOERTERBUCH.filter(silben => {
+                if(silben.length < state.settings.minSilben || silben.length > state.settings.maxSilben) return false;
+                return silben.join('').toUpperCase().split('').every(c => allowedCharsFlat.has(c));
+             });
+        }
+
         function updateTimer() {
             const now = Date.now();
             let diff = 0;
-            if (state.settings.mode === 'count') {
-                diff = now - state.game.startTimeGlobal;
-            } else {
+            if (state.settings.mode === 'count') diff = now - state.game.startTimeGlobal;
+            else {
                 const endTime = state.game.startTimeGlobal + (state.settings.targetValue * 60 * 1000);
                 diff = endTime - now;
                 if (diff <= 0) { diff = 0; endGameTimeUp(); return; }
@@ -408,9 +422,15 @@
 
             dom.stats.progressText.textContent = state.settings.mode === 'count' ? `Wort ${state.game.runde + 1} / ${state.settings.targetValue}` : `${state.game.runde + 1} Wörter`;
 
-            let wort = selectWordPriority();
+            // --- WORT SELEKTION LOGIK (20er Regel + Keine Wiederholung) ---
+            let wort = selectWordWithRules();
+            
+            // Sicherheitsnetz (sollte durch selectWordWithRules schon abgedeckt sein, aber zur Sicherheit)
             let versuche = 0;
-            while (state.game.history.has(wort.join('')) && versuche < 20) { wort = selectWordPriority(); versuche++; }
+            while (state.game.history.has(wort.join('')) && versuche < 30) {
+                wort = selectWordWithRules();
+                versuche++;
+            }
             state.game.history.add(wort.join(''));
             
             const fullString = wort.join('').toUpperCase();
@@ -430,83 +450,75 @@
             });
             adjustFontSize();
 
-            dom.card.swipe.style.transition = 'none';
-            dom.card.swipe.style.transform = 'scale(0.8)';
-            dom.card.swipe.style.opacity = '0';
-            dom.card.overlay.style.opacity = '0';
-            dom.card.content.style.backgroundColor = 'white';
-            
+            dom.card.swipe.style.transition = 'none'; dom.card.swipe.style.transform = 'scale(0.8)'; dom.card.swipe.style.opacity = '0'; dom.card.overlay.style.opacity = '0'; dom.card.content.style.backgroundColor = 'white';
             requestAnimationFrame(() => {
-                dom.card.swipe.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                dom.card.swipe.style.transform = 'scale(1)';
-                dom.card.swipe.style.opacity = '1';
-                state.game.wordStartTime = Date.now();
+                dom.card.swipe.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; dom.card.swipe.style.transform = 'scale(1)'; dom.card.swipe.style.opacity = '1'; state.game.wordStartTime = Date.now();
             });
         }
 
-        // --- WORT LOGIK ---
-        function selectWordPriority() {
-            const allowedCharsFlat = new Set();
-            state.settings.currentLetters.forEach(t => t.toUpperCase().split('').forEach(c => allowedCharsFlat.add(c)));
+        function selectWordWithRules() {
+            const availableRealWords = state.game.realWordsPossible.length;
+            const playedCount = state.game.runde + 1;
 
-            const candidates = WOERTERBUCH.filter(silben => {
-                if(silben.length < state.settings.minSilben || silben.length > state.settings.maxSilben) return false;
-                return silben.join('').toUpperCase().split('').every(c => allowedCharsFlat.has(c));
-            });
-
-            if (candidates.length > 0) {
-                const unused = candidates.filter(w => !state.game.history.has(w.join('')));
-                const pool = unused.length > 0 ? unused : candidates;
-                // Sort by least used letters
-                pool.sort((a, b) => scoreWord(b) - scoreWord(a));
-                return pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
+            // Regel 1: Alle 3 Wörter ein Fantasiewort, WENN zu wenig echte Wörter (<20)
+            if (availableRealWords < 20 && playedCount % 3 === 0) {
+                return generateFantasyWord(determineTargetLength());
             }
-            
-            const targetLen = Math.random() < 0.75 ? state.settings.maxSilben : Math.floor(Math.random() * (state.settings.maxSilben - state.settings.minSilben + 1)) + state.settings.minSilben;
-            return generateFantasyWord(targetLen);
+
+            // Regel 2: Versuche ein unbenutztes echtes Wort zu finden
+            const unusedReal = state.game.realWordsPossible.filter(w => !state.game.history.has(w.join('')));
+            if (unusedReal.length > 0) {
+                return unusedReal[Math.floor(Math.random() * unusedReal.length)];
+            }
+
+            // Regel 3: Wenn keine echten Wörter mehr übrig sind -> Fantasiewort
+            return generateFantasyWord(determineTargetLength());
         }
 
-        function scoreWord(silben) {
-            let score = 0;
-            const str = silben.join('').toUpperCase();
-            state.settings.currentLetters.forEach(t => { if(str.includes(t.toUpperCase())) score += 1 / ((state.game.letterStats[t]||0) + 1); });
-            return score;
+        function determineTargetLength() {
+            const min = state.settings.minSilben;
+            const max = state.settings.maxSilben;
+            if (min === max) return max;
+            return Math.random() < 0.75 ? max : Math.floor(Math.random() * (max - 1 - min + 1)) + min;
         }
 
-        function generateFantasyWord(len) {
-            const res = [];
+        function generateFantasyWord(length) {
             const v = state.settings.currentLetters.filter(b => VOKALE_LISTE.includes(b));
             const k = state.settings.currentLetters.filter(b => !VOKALE_LISTE.includes(b) && !DIPHTHONGE_LISTE.includes(b));
             const d = state.settings.currentLetters.filter(b => DIPHTHONGE_LISTE.includes(b));
-            if (v.length === 0 && d.length === 0) return ["A".repeat(len).split('')]; 
+            if (v.length === 0 && d.length === 0) return ["A".repeat(length).split('')]; 
 
-            for(let i=0; i<len; i++) {
-                let s = '', attempts=0;
+            const pick = (pool) => {
+                if (pool.length === 0) return '';
+                // Bevorzuge Buchstaben die wenig genutzt wurden
+                let minU = Infinity; pool.forEach(c => { if((state.game.letterStats[c]||0)<minU) minU=state.game.letterStats[c]||0; });
+                const cands = pool.filter(c => (state.game.letterStats[c]||0)===minU);
+                return cands[Math.floor(Math.random()*cands.length)];
+            };
+
+            const res = [];
+            for(let i=0; i<length; i++) {
+                let s='', type='KV';
+                // Regeln für Fantasiewörter vermeiden
+                let attempts=0, valid=false;
                 do {
-                    let type = 'KV';
-                    if(Math.random() < 0.1) type = 'V';
-                    s = '';
-                    if(type==='KV' && k.length>0) s += pickWeighted(k);
-                    if(d.length>0 && Math.random()<0.2) s += pickWeighted(d);
-                    else if(v.length>0) s += pickWeighted(v);
+                    if(Math.random()<0.1) type='V'; else type='KV';
+                    s='';
+                    if(type==='KV' && k.length>0) s += pick(k);
+                    if(d.length>0 && Math.random()<0.2) s += pick(d); else if(v.length>0) s += pick(v);
+                    
+                    valid = true;
+                    // Keine 3 gleichen Silben
+                    if(length>=3 && i>0 && s===res[i-1]) valid=false;
+                    // Keine Vokal-Kollision (Endet Vokal -> Startet Vokal)
+                    if(i>0 && VOKALE_LISTE.includes(res[i-1].slice(-1).toUpperCase()) && VOKALE_LISTE.includes(s.charAt(0).toUpperCase())) valid=false;
                     attempts++;
-                } while(len >= 3 && i > 0 && s === res[i-1] && attempts < 10);
+                } while(!valid && attempts<10);
                 res.push(s);
             }
             return res;
         }
 
-        function pickWeighted(pool) {
-            let min = Infinity;
-            pool.forEach(c => { const u = state.game.letterStats[c]||0; if(u<min) min=u; });
-            const cands = pool.filter(c => (state.game.letterStats[c]||0) === min);
-            return cands[Math.floor(Math.random()*cands.length)];
-        }
-
-        // --- RESTLICHE FUNKTIONEN (SWIPE, PHYSICS, ETC) SIND UNVERÄNDERT ---
-        // Um Platz zu sparen, hier komprimiert, da die Logik identisch zum vorherigen stabilen Build ist.
-        // Nur notwendige Anpassungen für die neuen Variablen (state.settings.currentLetters) wurden oben gemacht.
-        
         function handleResult(success) {
             if (success) {
                 state.game.richtig++;
@@ -518,6 +530,7 @@
             setTimeout(nextCard, 300);
         }
 
+        // --- SWIPE (Identisch) ---
         function initSwipeLogic() {
             let startX = 0, isDragging = false; const card = dom.card.swipe; const content = dom.card.content;
             const start = (x) => { if (state.game.finished) return; startX = x; isDragging = true; card.style.transition = 'none'; };
@@ -543,6 +556,7 @@
             card.addEventListener('mousedown', e => start(e.clientX)); window.addEventListener('mousemove', e => move(e.clientX)); window.addEventListener('mouseup', e => end(e.clientX));
         }
 
+        // --- PHYSICS & INTERACTION (Identisch) ---
         function startPhysics() {
             stopPhysics();
             const container = document.getElementById('2d-canvas-container');
@@ -553,8 +567,7 @@
                 if (!engine) return; window.requestAnimationFrame(loop);
                 Matter.Engine.update(engine, 1000/60);
                 const ctx = render.context; ctx.clearRect(0, 0, w = render.canvas.width, h = render.canvas.height);
-                ctx.save();
-                state.view.zoom += (state.view.targetZoom - state.view.zoom) * 0.05;
+                ctx.save(); state.view.zoom += (state.view.targetZoom - state.view.zoom) * 0.05;
                 ctx.translate(w/2, h/2); ctx.scale(state.view.zoom, state.view.zoom); ctx.translate(-w/2, -h/2);
                 Matter.Composite.allBodies(world).forEach(b => {
                     if (b.label === 'wall' || b.label === 'stirrer') return;
@@ -598,8 +611,14 @@
             if(state.game.timerInterval) clearInterval(state.game.timerInterval); state.game.finished = true;
             dom.card.swipe.classList.add('hidden');
             if(state.settings.mode==='count') dom.misc.losContainer.classList.remove('hidden');
-            else dom.misc.losContainer.classList.add('hidden');
             if(world) Matter.Composite.allBodies(world).forEach(b => { Matter.Sleeping.set(b, false); b.sleepThreshold = -1; });
+            
+            // Time Mode End Handler for Interaction
+            if (state.settings.mode === 'time') {
+                // Event listener ist schon global. Hier nur sicherstellen, dass wir wissen es ist ende.
+                // Prüfen ob schon leer? Nein, User muss platzen lassen.
+                if(state.game.richtig === 0) showEnd(); // Wenn 0 Wörter, direkt Ende
+            }
         }
         function triggerExplosion() {
             dom.misc.losContainer.classList.add('hidden'); if(stirrer) { Matter.Composite.remove(engine.world, stirrer); stirrer = null; }
@@ -608,12 +627,52 @@
             Matter.Composite.allBodies(engine.world).forEach(b => { if(!b.isStatic) Matter.Body.applyForce(b, b.position, { x: (Math.random()-0.5)*1.5, y: -2.5-Math.random()*2 }); });
             setTimeout(showEnd, 4000);
         }
+        
+        // --- NEU: TIER BEWERTUNG ---
         function showEnd() {
             state.game.active = false; stopPhysics();
             dom.views.spiel.classList.add('hidden'); dom.views.ende.classList.remove('hidden'); dom.views.ende.classList.add('flex');
+            
             dom.stats.resRight.textContent = state.game.richtig;
-            const d = Date.now() - state.game.startTimeGlobal; dom.stats.resTime.textContent = `${Math.floor(d/60000).toString().padStart(2,'0')}:${Math.floor((d%60000)/1000).toString().padStart(2,'0')}`;
+            const d = Date.now() - state.game.startTimeGlobal; 
+            const secs = Math.floor(d/1000);
+            dom.stats.resTime.textContent = `${Math.floor(secs/60).toString().padStart(2,'0')}:${(secs%60).toString().padStart(2,'0')}`;
+
+            // WPM berechnen
+            const minutes = secs / 60;
+            const wpm = minutes > 0 ? state.game.richtig / minutes : 0;
+
+            // Tier Leiter Rendern
+            // Liste von unten (Langsam) nach oben (Schnell) = Reverse Order im Array für Visualisierung von Unten nach Oben
+            // HTML Flex Col Reverse kümmert sich drum
+            
+            let reachedLevelIdx = 0;
+            // Finde höchstes erreichtes Level
+            for (let i=0; i<ANIMALS.length; i++) {
+                if (wpm >= ANIMALS[i].wpm) reachedLevelIdx = i;
+            }
+            if (state.game.richtig === 0) reachedLevelIdx = -1; // Nichts erreicht
+
+            dom.stats.animals.innerHTML = ANIMALS.map((anim, i) => {
+                const isActive = i === reachedLevelIdx;
+                return `<div class="text-6xl transition-all duration-500 ${isActive ? 'active-animal' : 'grayscale-icon'}">${anim.icon}</div>`;
+            }).reverse().join(''); // Reverse damit Gepard oben ist
         }
+
+        function handleInteractionStart(e) {
+            if(!state.game.finished || state.settings.mode !== 'time') return;
+            const x = e.touches ? e.touches[0].clientX : e.clientX; const y = e.touches ? e.touches[0].clientY : e.clientY;
+            const clicked = Matter.Query.point(Matter.Composite.allBodies(world), {x, y});
+            let removed = false;
+            clicked.forEach(b => { if(!b.isStatic && b.label!=='wall') { Matter.Composite.remove(world, b); createConfetti(b.position.x, b.position.y, b.render.fillStyle); removed=true; } });
+            // Check if empty
+            if(removed && Matter.Composite.allBodies(world).filter(b=>!b.isStatic && b.label!=='wall').length===0) setTimeout(showEnd, 1000);
+        }
+        function createConfetti(x, y, c) {
+            for(let i=0; i<20; i++) { const p = Matter.Bodies.circle(x, y, 4, { render: { fillStyle: c }, frictionAir: 0.02, restitution: 0.6 }); Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*30, y: (Math.random()-0.5)*30 }); Matter.Composite.add(world, p); setTimeout(() => { if(world) Matter.Composite.remove(world, p); }, 2000); }
+        }
+        document.addEventListener('mousedown', handleInteractionStart); document.addEventListener('touchstart', handleInteractionStart, {passive: false});
+
         function saveSettings() {
             const checked = dom.inputs.container.querySelectorAll('input:checked');
             const d = { heftIndex: dom.inputs.heftSelect.value, buchstaben: Array.from(checked).map(c => c.value), minSilben: parseInt(dom.inputs.min.value), maxSilben: parseInt(dom.inputs.max.value), mode: state.settings.mode, targetValue: state.settings.mode === 'count' ? parseInt(dom.inputs.valCount.value) : parseInt(dom.inputs.valTime.value), farben: dom.inputs.color.checked, abstand: dom.inputs.gap.checked };
@@ -625,23 +684,9 @@
             try { const s = localStorage.getItem('leseAppConf'); if(s) { const p = JSON.parse(s); d = {...d, ...p}; } } catch(e){}
             state.settings = d; dom.inputs.min.value = d.minSilben; dom.inputs.max.value = d.maxSilben; dom.inputs.color.checked = d.farben; dom.inputs.gap.checked = d.abstand; dom.inputs.heftSelect.value = d.heftIndex || 1;
             setMode(d.mode); if(d.mode==='count') dom.inputs.valCount.value = d.targetValue; else dom.inputs.valTime.value = d.targetValue;
-            updateBuchstabenUI(parseInt(d.heftIndex || 1), d.buchstaben);
+            selectHeft(parseInt(d.heftIndex || 1));
             updateLabels();
         }
-        function handleInteractionStart(e) {
-            if(!state.game.finished || state.settings.mode !== 'time') return;
-            const x = e.touches ? e.touches[0].clientX : e.clientX; const y = e.touches ? e.touches[0].clientY : e.clientY;
-            const clicked = Matter.Query.point(Matter.Composite.allBodies(world), {x, y});
-            let removed = false;
-            clicked.forEach(b => { if(!b.isStatic && b.label!=='wall') { Matter.Composite.remove(world, b); createConfetti(b.position.x, b.position.y, b.render.fillStyle); removed=true; } });
-            if(removed && Matter.Composite.allBodies(world).filter(b=>!b.isStatic && b.label!=='wall').length===0) setTimeout(showEnd, 1000);
-        }
-        function createConfetti(x, y, c) {
-            for(let i=0; i<20; i++) { const p = Matter.Bodies.circle(x, y, 4, { render: { fillStyle: c }, frictionAir: 0.02, restitution: 0.6 }); Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*30, y: (Math.random()-0.5)*30 }); Matter.Composite.add(world, p); setTimeout(() => { if(world) Matter.Composite.remove(world, p); }, 2000); }
-        }
-        document.addEventListener('mousedown', handleInteractionStart); document.addEventListener('touchstart', handleInteractionStart, {passive: false});
     </script>
 </body>
 </html>
-
-
